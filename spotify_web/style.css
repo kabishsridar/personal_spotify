@@ -1,0 +1,333 @@
+/* Spotify Web Premium Styles */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700&display=swap');
+
+:root {
+    --bg-base: #000000;
+    --bg-elevated: #121212;
+    --bg-highlight: #1a1a1a;
+    --primary-green: #1db954;
+    --text-base: #ffffff;
+    --text-sub: #b3b3b3;
+    --bg-card: #181818;
+    --bg-card-hover: #282828;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-base);
+    overflow: hidden;
+    height: 100vh;
+}
+
+.app-container {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 1fr 90px;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    background-color: var(--bg-base);
+    padding: 24px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 24px;
+    font-weight: 700;
+    padding-left: 12px;
+}
+
+.logo i {
+    font-size: 32px;
+}
+
+.menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.menu a {
+    text-decoration: none;
+    color: var(--text-sub);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.menu a:hover, .menu a.active {
+    color: var(--text-base);
+}
+
+.playlists h3 {
+    font-size: 11px;
+    color: var(--text-sub);
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+    padding-left: 12px;
+}
+
+.playlist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 12px;
+}
+
+.playlist-list a {
+    text-decoration: none;
+    color: var(--text-sub);
+    font-size: 14px;
+    transition: color 0.3s;
+}
+
+.playlist-list a:hover {
+    color: var(--text-base);
+}
+
+/* Main Content */
+.main-content {
+    background: linear-gradient(180deg, #1f1f1f 0%, #121212 100%);
+    padding: 0 32px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.top-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 64px;
+    z-index: 100;
+}
+
+.nav-arrows i {
+    background-color: rgba(0,0,0,0.7);
+    padding: 8px;
+    border-radius: 50%;
+    margin-right: 16px;
+    cursor: pointer;
+}
+
+.user-profile {
+    background-color: rgba(0,0,0,0.7);
+    padding: 2px;
+    padding-right: 12px;
+    border-radius: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.user-profile img {
+    height: 28px;
+    width: 28px;
+    border-radius: 50%;
+}
+
+.user-profile span {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* Sections */
+h1 { margin: 24px 0; font-size: 32px; }
+h2 { margin: 24px 0; font-size: 24px; }
+
+.recent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.recent-card {
+    background-color: rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+    height: 80px;
+}
+
+.recent-card:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+.recent-card img {
+    height: 100%;
+    width: 80px;
+    object-fit: cover;
+}
+
+.recent-card span {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.play-btn {
+    position: absolute;
+    right: 16px;
+    background-color: var(--primary-green);
+    border: none;
+    height: 48px;
+    width: 48px;
+    border-radius: 50%;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.recent-card:hover .play-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Genre Cards */
+.genre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 24px;
+}
+
+.genre-card {
+    height: 200px;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.3s;
+    overflow: hidden;
+    position: relative;
+}
+
+.genre-card:hover {
+    transform: scale(1.05);
+}
+
+/* Player Bar */
+.player-bar {
+    grid-column: 1 / -1;
+    background-color: #181818;
+    border-top: 1px solid #282828;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.current-track {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 30%;
+}
+
+.current-track img {
+    height: 56px;
+    width: 56px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.track-info h4 { font-size: 14px; margin-bottom: 4px; }
+.track-info p { font-size: 11px; color: var(--text-sub); }
+
+.player-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 40%;
+}
+
+.buttons {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 16px;
+    color: var(--text-sub);
+}
+
+.buttons i:hover { color: var(--text-base); cursor: pointer; }
+
+.play-pause {
+    background-color: var(--text-base);
+    color: var(--bg-base);
+    height: 32px;
+    width: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-sub);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 4px;
+    background-color: #4f4f4f;
+    border-radius: 2px;
+}
+
+.progress {
+    height: 100%;
+    background-color: var(--primary-green);
+    border-radius: 2px;
+    width: 20%;
+}
+
+.volume-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 30%;
+    justify-content: flex-end;
+    color: var(--text-sub);
+}
+
+.volume-bar {
+    width: 100px;
+    height: 4px;
+    background-color: #4f4f4f;
+    border-radius: 2px;
+}
+.volume-progress { background-color: var(--text-base); height: 100%; border-radius: 2px; }
+
+.hidden { display: none; }

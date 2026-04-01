@@ -1,0 +1,9 @@
+__pycache__/
+.env
+Cache/
+Music/
+*.pyc
+.vscode/
+node_modules/
+.ipynb_checkpoints/
+libmpv-2.dll
