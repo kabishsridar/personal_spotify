@@ -54,6 +54,11 @@ const videoIframe = document.getElementById('video-iframe');
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Spotify Web Engine: THEATER MODE ONLINE 🎬🚀");
+    
+    // INITIALIZE VOLUME SYNC 🔊
+    audioEngine.volume = 0.7;
+    if (volumeProgress) volumeProgress.style.width = "70%";
+    
     renderSidebarPlaylists();
     setupEventListeners();
 });
@@ -111,6 +116,18 @@ function setupEventListeners() {
         const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
         progressBar.style.width = `${percent * 100}%`;
         if (audioEngine.duration) audioEngine.currentTime = percent * audioEngine.duration;
+    }
+
+    function updateVolumeFromEvent(e) {
+        if (!volumeBarBg || !audioEngine) return;
+        const rect = volumeBarBg.getBoundingClientRect();
+        const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+        
+        audioEngine.volume = percent;
+        if (volumeProgress) volumeProgress.style.width = `${percent * 100}%`;
+        
+        isMuted = (percent === 0);
+        updateVolumeIcon();
     }
 }
 

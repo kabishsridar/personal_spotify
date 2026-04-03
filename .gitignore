@@ -7,3 +7,7 @@ Music/
 node_modules/
 .ipynb_checkpoints/
 libmpv-2.dll
+dist/
+*win32-x64/
+*.log
+database.db

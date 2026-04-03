@@ -188,9 +188,14 @@
                 <div class="progress-bar-container"><span id="current-time">0:00</span><div class="progress-bar"><div class="progress" id="playback-progress"></div></div><span id="total-time">0:00</span></div>
             </div>
 
-            <div class="volume-controls">
-                <i class="fas fa-volume-up" id="btn-mute" style="cursor: pointer;"></i>
-                <div class="volume-bar" style="background: #4f4f4f; height: 4px; width: 100px; border-radius: 2px;"><div class="volume-progress" style="width: 70%; background: white;"></div></div>
+            <div class="volume-controls" style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-volume-up" id="btn-mute" style="cursor: pointer; width: 24px;"></i>
+                <div class="volume-bar" style="height: 24px; width: 100px; display: flex; align-items: center; position: relative; cursor: pointer;">
+                    <!-- The Background Line -->
+                    <div style="background: #4f4f4f; height: 4px; width: 100%; border-radius: 2px; position: absolute; z-index: 1;"></div>
+                    <!-- The Progress Bar (White) -->
+                    <div class="volume-progress" style="width: 70%; background: white; height: 4px; border-radius: 2px; position: absolute; left: 0; z-index: 2;"></div>
+                </div>
             </div>
         </footer>
     </div>
