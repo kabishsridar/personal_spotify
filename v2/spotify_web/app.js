@@ -372,9 +372,24 @@ function showView(viewId) {
 }
 
 function _internalShowView(viewId, updateSidebar = true) {
-    document.querySelectorAll('.content-view').forEach(v => v.classList.add('hidden'));
-    const view = document.getElementById(viewId);
-    if (view) view.classList.remove('hidden');
+    const views = document.querySelectorAll('.content-view');
+    views.forEach(v => {
+        v.style.opacity = "0";
+        v.style.transform = "translateY(20px) scale(0.98)";
+        setTimeout(() => v.classList.add('hidden'), 300);
+    });
+
+    setTimeout(() => {
+        const view = document.getElementById(viewId);
+        if (view) {
+            view.classList.remove('hidden');
+            setTimeout(() => {
+                view.style.opacity = "1";
+                view.style.transform = "translateY(0) scale(1)";
+                view.style.transition = "all 0.6s cubic-bezier(0.23, 1, 0.32, 1)";
+            }, 50);
+        }
+    }, 310);
 
     if (updateSidebar) {
         document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
@@ -471,6 +486,15 @@ async function playTrack(track) {
     btnAddCurrent.style.display = 'block';
 
     try {
+        // V2 DYNAMIC COLOR SYNC
+        const hueShift = Math.floor(Math.random() * 360);
+        document.body.style.filter = `hue-rotate(${hueShift}deg)`;
+        setTimeout(() => document.body.style.filter = "none", 1000); 
+
+        const colors = ["#00f2ff", "#ff00ff", "#1db954", "#ff4632", "#7358ff"];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        document.documentElement.style.setProperty('--primary-green', randomColor);
+
         const response = await fetch(`http://127.0.0.1:8000/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
         const data = await response.json();
         
