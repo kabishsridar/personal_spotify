@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">45 Personal Spotify</string>
+    <string name="title_activity_main">45 Personal Spotify</string>
+    <string name="package_name">com.personalspotify.app</string>
+    <string name="custom_url_scheme">com.personalspotify.app</string>
+</resources>

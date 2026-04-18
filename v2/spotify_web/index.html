@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Spotify Web 🎧</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Floating Dropdown for Playlist Selection */
+        .playlist-dropdown {
+            position: absolute;
+            bottom: 100px;
+            left: 20px;
+            background: #282828;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            padding: 8px 0;
+            width: 200px;
+            z-index: 1000;
+            display: none;
+        }
+        .playlist-dropdown div { padding: 12px 16px; color: #b3b3b3; font-size: 14px; cursor: pointer; transition: 0.2s; }
+        .playlist-dropdown div:hover { background: #3e3e3e; color: white; }
+        .playlist-dropdown h4 { padding: 8px 16px; font-size: 11px; color: grey; letter-spacing: 1.2px; text-transform: uppercase; }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1db954;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            z-index: 2000;
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translate(-50%, 50px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+        /* Search Layout */
+        .search-container { position: relative; max-width: 600px; margin: 20px 0 50px 0; }
+        .search-container i { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #121212; font-size: 24px; }
+        .search-container input { width: 100%; padding: 16px 16px 16px 65px; border-radius: 50px; border: none; font-size: 18px; font-weight: 600; outline: none; background: white; color: black; }
+
+        /* VIDEO SIDEBAR STYLE */
+        .video-sidebar.hidden, .queue-sidebar.hidden { width: 0 !important; border-left: none; }
+        .queue-sidebar {
+            background-color: #000000;
+            border-left: 1px solid #282828;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: width 0.3s ease-in-out;
+            position: relative;
+            z-index: 500;
+        }
+        .queue-header { padding: 16px; border-bottom: 1px solid #282828; }
+        .queue-header h3 { font-size: 16px; font-weight: 700; color: white; }
+        .queue-list { flex: 1; overflow-y: auto; padding: 16px; }
+        .queue-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px; border-radius: 4px; transition: background 0.2s; cursor: pointer; }
+        .queue-item:hover { background: #1a1a1a; }
+        .queue-item img { width: 40px; height: 40px; border-radius: 4px; }
+        .queue-item-info h4 { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .queue-item-info p { font-size: 11px; color: #b3b3b3; }
+
+        .video-sidebar { }
+        .video-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #121212;
+            z-index: 10;
+        }
+        .video-header h3 { font-size: 14px; font-weight: 700; color: white; }
+        .video-header i { cursor: pointer; color: #b3b3b3; font-size: 18px; transition: color 0.3s; }
+        .video-header i:hover { color: white; }
+        .video-container { flex: 1; position: relative; width: 100%; background: #000; overflow: hidden; }
+        .video-container iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
+        
+        .app-container {
+            display: grid;
+            grid-template-columns: 240px 1fr 0px 0px; /* Video Sidebar 0px, Queue Sidebar 0px */
+            grid-template-rows: 1fr 90px;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            transition: grid-template-columns 0.3s ease-in-out;
+        }
+        .app-container.show-video {
+            grid-template-columns: 240px 1fr 400px 0px;
+        }
+        .app-container.show-queue {
+            grid-template-columns: 240px 1fr 0px 300px;
+        }
+        .app-container.show-both {
+            grid-template-columns: 240px 1fr 400px 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fab fa-spotify" style="color: #1db954; font-size: 32px;"></i>
+                <span style="font-size: 24px; font-weight: 900; letter-spacing: -0.5px;">45 personal spotify</span>
+            </div>
+            <nav class="menu">
+                <a href="#" id="nav-home" class="active"><i class="fas fa-home"></i> Home</a>
+                <a href="#" id="nav-search"><i class="fas fa-search"></i> Search</a>
+                <a href="#" id="nav-library"><i class="fas fa-book"></i> Your Library</a>
+            </nav>
+            <div class="playlists">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 24px 0 16px 0;">
+                    <h3 style="font-size: 12px; color: #b3b3b3;">PLAYLISTS</h3>
+                    <i class="fas fa-plus" id="btn-create-playlist" style="cursor: pointer; color: #b3b3b3; font-size: 16px;"></i>
+                </div>
+                <div class="playlist-list" id="sidebar-playlists"></div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-nav">
+                <div class="nav-arrows">
+                    <i class="fas fa-chevron-left" id="btn-back" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer;"></i>
+                    <i class="fas fa-sync-alt" id="btn-refresh" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer; margin-left:10px;" title="Hard Refresh UI"></i>
+                </div>
+                <div class="user-profile"><img src="https://ui-avatars.com/api/?name=User&background=1db954&color=fff"><span>User</span><i class="fas fa-caret-down"></i></div>
+            </header>
+
+            <section class="content-view" id="home">
+                <h1 style="font-size: 48px;">Good Evening</h1>
+                <div class="recent-grid">
+                    <div class="recent-card"><img src="https://upload.wikimedia.org/wikipedia/en/3/39/The_Weeknd_-_Starboy.png"><span>Starboy Collection</span></div>
+                    <div class="recent-card"><img src="https://upload.wikimedia.org/wikipedia/en/4/45/Divide_cover.png"><span>Ed Sheeran Mix</span></div>
+                    <div class="recent-card"><img src="https://i.scdn.co/image/ab67706f000000020a597a78377fe725841cb027"><span>A.R. Rahman Classics</span></div>
+                </div>
+                <h2>Explore More</h2>
+                <h2>Explore Languages</h2>
+                <div class="genre-grid">
+                    <div class="genre-card" id="card-tamil" style="background: linear-gradient(135deg, #006450, #00d2aa);">Tamil Hits</div>
+                    <div class="genre-card" id="card-hindi" style="background: linear-gradient(135deg, #8d67ab, #c4efd9);">Hindi Global</div>
+                    <div class="genre-card" id="card-english" style="background: linear-gradient(135deg, #1e3264, #1ed760);">English Pop</div>
+                    <div class="genre-card" id="card-malayalam" style="background: linear-gradient(135deg, #e91429, #ffd1bf);">Malayalam Melodies</div>
+                    <div class="genre-card" id="card-telugu" style="background: linear-gradient(135deg, #8c1932, #ffb3b3);">Telugu Beats</div>
+                </div>
+                <h2>Explore More</h2>
+                <div class="genre-grid">
+                    <div class="genre-card" style="background: #006450;">Tamil Hits</div>
+                    <div class="genre-card" style="background: #8d67ab;">Bollywood</div>
+                    <div class="genre-card" style="background: #1e3264;">Pop Classics</div>
+                    <div class="genre-card" style="background: #e91429;">Gaming Legends</div>
+                </div>
+            </section>
+
+            <section class="content-view hidden" id="search-view">
+                <h1 style="font-size: 48px;">Search</h1>
+                <div class="search-container"><i class="fas fa-search"></i><input type="text" id="web-search-input" placeholder="What do you want to listen to?"></div>
+                <div id="search-placeholder-content">
+                    <h2>Browse All Categories</h2>
+                    <div class="genre-grid">
+                        <div class="genre-card" style="background: #e13300;">Podcasts</div>
+                        <div class="genre-card" style="background: #1e3264;">Tamil Hits</div>
+                        <div class="genre-card" style="background: #8d67ab;">Bollywood Mix</div>
+                        <div class="genre-card" style="background: #e8115b;">New Releases</div>
+                        <div class="genre-card" style="background: #ff4632;">Party Time</div>
+                        <div class="genre-card" style="background: #7358ff;">Indie Indian</div>
+                    </div>
+                </div>
+                <div class="results-list hidden" id="results-list"></div>
+            </section>
+
+            <section class="content-view hidden" id="playlist-view">
+                <div style="display: flex; gap: 40px; margin: 40px 0; align-items: flex-end;">
+                    <div style="width: 232px; height: 232px; background: linear-gradient(135deg, #450af5, #c4efd9); border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"><i class="fas fa-music" style="font-size: 100px;"></i></div>
+                    <div><p style="font-size: 12px; font-weight: 700;">PLAYLIST</p><h1 id="playlist-view-title" style="font-size: 96px;">My Playlist</h1><p style="color: grey;" id="playlist-track-count">0 songs</p></div>
+                </div>
+                <div class="results-list" id="playlist-tracks"></div>
+            </section>
+        </main>
+
+        <!-- VIDEO SIDEBAR -->
+        <aside class="video-sidebar" id="video-sidebar">
+            <div class="video-header">
+                <h3 id="video-sidebar-title">Now Watching</h3>
+                <i class="fas fa-times" id="btn-close-video"></i>
+            </div>
+            <div class="video-container">
+                <iframe id="video-iframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+        </aside>
+
+        <!-- QUEUE SIDEBAR -->
+        <aside class="queue-sidebar" id="queue-sidebar">
+            <div class="queue-header">
+                <h3>Queue</h3>
+            </div>
+            <div class="queue-list" id="queue-list">
+                <!-- Queue Items Dynamic -->
+            </div>
+        </aside>
+
+        <!-- Player Bar -->
+        <footer class="player-bar">
+            <div class="current-track">
+                <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=100&auto=format&fit=crop" id="player-thumb">
+                <div class="track-info">
+                    <h4 id="player-title" style="cursor: pointer; text-decoration: underline;">Welcome</h4>
+                    <p id="player-artist">Ready to play...</p>
+                </div>
+                <i class="fas fa-plus-circle" id="btn-add-current-playlist" style="cursor: pointer; color: #1db954; font-size: 20px; margin-left: 20px; display: none;"></i>
+                <div class="playlist-dropdown" id="playlist-select-menu"><h4>Add to playlist</h4><div id="dropdown-playlist-list"></div></div>
+            </div>
+
+            <div class="player-controls">
+                <div class="buttons"><i class="fas fa-shuffle" id="btn-shuffle"></i><i class="fas fa-step-backward" id="btn-prev"></i><div class="play-pause" id="play-pause-btn"><i class="fas fa-play"></i></div><i class="fas fa-step-forward" id="btn-next"></i><i class="fas fa-redo" id="btn-repeat"></i></div>
+                <div class="progress-bar-container"><span id="current-time">0:00</span><div class="progress-bar"><div class="progress" id="playback-progress"></div></div><span id="total-time">0:00</span></div>
+            </div>
+
+            <div class="volume-controls" style="display: flex; align-items: center; gap: 15px;">
+                <i class="fas fa-list-ul" id="btn-toggle-queue" title="View Queue" style="cursor: pointer; color: #b3b3b3;"></i>
+                <i class="fas fa-volume-up" id="btn-mute" style="cursor: pointer; width: 24px;"></i>
+                <div class="volume-bar" style="height: 24px; width: 100px; display: flex; align-items: center; position: relative; cursor: pointer;">
+                    <!-- The Background Line -->
+                    <div style="background: #4f4f4f; height: 4px; width: 100%; border-radius: 2px; position: absolute; z-index: 1;"></div>
+                    <!-- The Progress Bar (White) -->
+                    <div class="volume-progress" style="width: 70%; background: white; height: 4px; border-radius: 2px; position: absolute; left: 0; z-index: 2;"></div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <div class="toast" id="toast-msg">Added to Playlist Successfully!</div>
+    <audio id="audio-engine"></audio>
+    <script src="app.js"></script>
+</body>
+</html>
