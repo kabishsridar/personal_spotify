@@ -13,11 +13,14 @@ let currentQueue = []; // Holds the list of songs the user is currently playing 
 let manualQueue = [];  // Manual "Play Next" queue where users add songs explicitly
 let isShuffled = false;
 let isRepeated = false;
+<<<<<<< HEAD
 
 // API Configuration
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://127.0.0.1:8000' 
     : `http://${window.location.hostname}:8000`;
+=======
+>>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
 
 // Library & Playlists
 let playlists = JSON.parse(localStorage.getItem('spotify_web_playlists')) || {
@@ -410,7 +413,11 @@ async function performSearch(query) {
     document.getElementById('results-list').innerHTML = `<p style="padding: 20px; color: grey;">Searching global music database for '${query}'...</p>`;
 
     try {
+<<<<<<< HEAD
         const response = await fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}`);
+=======
+        const response = await fetch(`http://127.0.0.1:8000/api/search?q=${encodeURIComponent(query)}`);
+>>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
         const tracks = await response.json();
         renderTrackList(tracks, document.getElementById('results-list'));
     } catch (err) { console.error(err); }
@@ -488,7 +495,11 @@ async function playTrack(track) {
     btnAddCurrent.style.display = 'block';
 
     try {
+<<<<<<< HEAD
         const response = await fetch(`${API_BASE_URL}/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
+=======
+        const response = await fetch(`http://127.0.0.1:8000/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
+>>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
         const data = await response.json();
         
         if (data.url) {
