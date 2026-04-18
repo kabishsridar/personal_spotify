@@ -20,7 +20,7 @@ class SpotifyAPI:
             auth_manager = SpotifyClientCredentials(
                 client_id=self.client_id, 
                 client_secret=self.client_secret
-            )
+            )   
             self.sp = spotipy.Spotify(auth_manager=auth_manager)
         else:
             print("Spotify credentials not provided. Metadata search will be limited or mocked.")
