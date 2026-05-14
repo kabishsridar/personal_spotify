@@ -84,20 +84,22 @@
         .video-container { flex: 1; position: relative; width: 100%; background: #000; overflow: hidden; }
         .video-container iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
         
-        .app-container {
-            display: grid;
-            grid-template-columns: 240px 1fr 0px 0px; /* Video Sidebar 0px, Queue Sidebar 0px */
-            grid-template-rows: 1fr 90px;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            transition: grid-template-columns 0.3s ease-in-out;
-        }
-        .app-container.show-video {
-            grid-template-columns: 240px 1fr 400px 0px;
-        }
-        .app-container.show-queue {
-            grid-template-columns: 240px 1fr 0px 300px;
+        @media (min-width: 769px) {
+            .app-container {
+                display: grid;
+                grid-template-columns: 240px 1fr 0px 0px;
+                grid-template-rows: 1fr 90px;
+                height: 100vh;
+                width: 100vw;
+                overflow: hidden;
+                transition: grid-template-columns 0.3s ease-in-out;
+            }
+            .app-container.show-video {
+                grid-template-columns: 240px 1fr 400px 0px;
+            }
+            .app-container.show-queue {
+                grid-template-columns: 240px 1fr 0px 300px;
+            }
         }
         .app-container.show-both {
             grid-template-columns: 240px 1fr 400px 300px;
