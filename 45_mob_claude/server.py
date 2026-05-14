@@ -1,0 +1,66 @@
+# Spotify Web - Global Python Backend Relay
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import uvicorn
+import os
+import sys
+
+# Add root project path to sys.path to import our existing modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Also add the core directory to the path
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'core'))
+
+from core.spotify_api import SpotifyAPI
+from core.youtube_stream import streamer
+
+app = FastAPI(title="Spotify Web Backend")
+sp_api = SpotifyAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- API Endpoints ---
+
+@app.get("/api/search")
+async def search(q: str):
+    """Bridge metadata search to YouTube."""
+    print(f"Web Request: Searching for '{q}'...")
+    results = sp_api.search_tracks(q, limit=20)
+    return results
+
+@app.get("/api/stream")
+async def stream(title: str, artist: str):
+    """Bridge audio stream extraction."""
+    print(f"Web Request: Finding stream for '{title}' - '{artist}'...")
+    data = streamer.find_track_url(title, artist)
+    return data
+
+# --- Static File Handling ---
+
+@app.get("/manifest_v2.json")
+async def get_manifest():
+    return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifest_v2.json"), media_type="application/manifest+json")
+
+@app.get("/sw.js")
+async def get_sw():
+    return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sw.js"), media_type="application/javascript")
+
+# Serve the frontend files
+app.mount("/", StaticFiles(directory=os.path.dirname(os.path.abspath(__file__)), html=True), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+
+if __name__ == "__main__":
+    print("\n" + "="*50)
+    print("SPOTIFY WEB PLATFORM IS LAUNCHING...")
+    print("Open your browser at: http://localhost:8090")
+    print("="*50 + "\n")
+    uvicorn.run(app, host="127.0.0.1", port=8090, log_level="error")
