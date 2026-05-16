@@ -1,6 +1,5 @@
 {
-  "appId": "com.personalspotify.app",
+  "appId": "com.kabish.spotify",
   "appName": "45 Personal Spotify",
-  "webDir": "spotify_web",
-  "bundledWebRuntime": false
+  "webDir": "spotify_web"
 }

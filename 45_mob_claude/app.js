@@ -27,6 +27,7 @@ const audioEngine = document.getElementById('audio-engine');
 const progressBar = document.getElementById('playback-progress');
 const currentTimeEl = document.getElementById('current-time');
 const totalTimeEl = document.getElementById('total-time');
+const toastMsg = document.getElementById('toast-msg');
 
 const fullPlayer = document.getElementById('full-player');
 const miniPlayerTrigger = document.getElementById('mini-player-trigger');
@@ -52,6 +53,10 @@ function setupEventListeners() {
     document.getElementById('btn-prev').addEventListener('click', playPreviousTrack);
     
     audioEngine.addEventListener('timeupdate', updateProgress);
+    audioEngine.addEventListener('error', () => {
+        showToast("⚠️ Connection Error: YouTube Blocked this song.");
+        updatePlayButtons(false);
+    });
     audioEngine.addEventListener('ended', () => {
         if (isRepeated) playTrack(currentTrack);
         else playNextTrack();
@@ -153,6 +158,7 @@ function renderTrackList(tracks, container) {
 // --- Audio Engine ---
 async function playTrack(track) {
     currentTrack = track;
+    showToast(`🔍 Searching for "${track.title}"...`);
     
     // Update Mini Player
     playerTitle.innerText = track.title;
@@ -183,8 +189,14 @@ async function playTrack(track) {
                 videoContainerMobile.classList.add('hidden');
                 fullPlayerArt.classList.remove('hidden');
             }
+            showToast("🎵 Playing now!");
+        } else {
+            showToast("❌ YouTube blocked this song or no link found.");
         }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error(err); 
+        showToast("❌ Server Connection Failed.");
+    }
 }
 
 function togglePlay() {
@@ -213,6 +225,13 @@ function formatTime(seconds) {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function showToast(msg) {
+    if (!toastMsg) return;
+    toastMsg.innerText = msg;
+    toastMsg.style.display = 'block';
+    setTimeout(() => { toastMsg.style.display = 'none'; }, 3500);
 }
 
 function playNextTrack() {

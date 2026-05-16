@@ -13,14 +13,15 @@ let currentQueue = []; // Holds the list of songs the user is currently playing 
 let manualQueue = [];  // Manual "Play Next" queue where users add songs explicitly
 let isShuffled = false;
 let isRepeated = false;
-<<<<<<< HEAD
 
 // API Configuration
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://127.0.0.1:8000' 
-    : `http://${window.location.hostname}:8000`;
-=======
->>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
+// TIP: When running on a phone (APK), you must set 'backend_ip' in localStorage to your computer's local IP (e.g., 192.168.1.10)
+let savedIp = localStorage.getItem('backend_ip');
+let API_BASE_URL = savedIp 
+    ? `http://${savedIp}:8000`
+    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://127.0.0.1:8000' 
+        : `http://${window.location.hostname}:8000`);
 
 // Library & Playlists
 let playlists = JSON.parse(localStorage.getItem('spotify_web_playlists')) || {
@@ -81,6 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     renderSidebarPlaylists();
     setupEventListeners();
+
+    // Auto-show connect modal if no IP is set on startup
+    if (!localStorage.getItem('backend_ip')) {
+        const connectModal = document.getElementById('connect-modal');
+        if (connectModal) setTimeout(() => connectModal.classList.remove('hidden'), 800);
+    }
 });
 
 function setupEventListeners() {
@@ -145,6 +152,39 @@ function setupEventListeners() {
     document.getElementById('btn-back').addEventListener('click', goBack);
     document.getElementById('btn-refresh').addEventListener('click', () => location.reload());
     document.getElementById('btn-create-playlist').addEventListener('click', createPlaylist);
+
+    // --- Connect Modal Listeners ---
+    const btnConnect = document.getElementById('btn-connect-mobile');
+    const connectModal = document.getElementById('connect-modal');
+    const btnSaveIp = document.getElementById('btn-save-ip');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const inputIp = document.getElementById('input-backend-ip');
+
+    if (btnConnect) {
+        btnConnect.addEventListener('click', () => {
+            inputIp.value = localStorage.getItem('backend_ip') || "";
+            connectModal.classList.remove('hidden');
+        });
+    }
+
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener('click', () => connectModal.classList.add('hidden'));
+    }
+
+    if (btnSaveIp) {
+        btnSaveIp.addEventListener('click', () => {
+            const ip = inputIp.value.trim();
+            if (ip) {
+                localStorage.setItem('backend_ip', ip);
+                showToast("Connected to Computer! 🚀");
+                setTimeout(() => location.reload(), 1000); // Reload to apply new connection
+            } else {
+                localStorage.removeItem('backend_ip');
+                location.reload();
+            }
+            connectModal.classList.add('hidden');
+        });
+    }
 
     btnAddCurrent.addEventListener('click', (e) => { e.stopPropagation(); togglePlaylistMenu(); });
     document.addEventListener('click', () => playlistDropdown.style.display = 'none');
@@ -413,11 +453,7 @@ async function performSearch(query) {
     document.getElementById('results-list').innerHTML = `<p style="padding: 20px; color: grey;">Searching global music database for '${query}'...</p>`;
 
     try {
-<<<<<<< HEAD
         const response = await fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}`);
-=======
-        const response = await fetch(`http://127.0.0.1:8000/api/search?q=${encodeURIComponent(query)}`);
->>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
         const tracks = await response.json();
         renderTrackList(tracks, document.getElementById('results-list'));
     } catch (err) { console.error(err); }
@@ -495,11 +531,7 @@ async function playTrack(track) {
     btnAddCurrent.style.display = 'block';
 
     try {
-<<<<<<< HEAD
         const response = await fetch(`${API_BASE_URL}/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
-=======
-        const response = await fetch(`http://127.0.0.1:8000/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
->>>>>>> ba02e85c42897b2f69e84ed53340355085521b73
         const data = await response.json();
         
         if (data.url) {

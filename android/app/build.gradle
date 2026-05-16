@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.personalspotify.app"
+    namespace = "com.kabish.spotify"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.personalspotify.app"
+        applicationId "com.kabish.spotify"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

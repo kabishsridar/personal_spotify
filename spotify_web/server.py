@@ -49,8 +49,8 @@ async def read_index():
     return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
     print("\n" + "="*50)
-    print("SPOTIFY WEB PLATFORM IS LAUNCHING...")
-    print("Open your browser at: http://localhost:8000")
+    print(f"SPOTIFY CLOUD ENGINE IS LAUNCHING ON PORT {port}...")
     print("="*50 + "\n")
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="error")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
