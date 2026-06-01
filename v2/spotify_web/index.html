@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Spotify Web 🎧</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Floating Dropdown for Playlist Selection */
@@ -30,7 +30,7 @@
             bottom: 110px;
             left: 50%;
             transform: translateX(-50%);
-            background: #1db954;
+            background: var(--primary-green);
             color: white;
             padding: 12px 30px;
             border-radius: 8px;
@@ -101,6 +101,53 @@
         .app-container.show-both {
             grid-template-columns: 240px 1fr 400px 300px;
         }
+
+        /* Modal Style */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+        .modal.hidden { display: none !important; }
+        .modal-content {
+            background: #282828;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .modal-content h3 { margin-bottom: 10px; color: white; }
+        .modal-content p { color: #b3b3b3; font-size: 14px; margin-bottom: 20px; }
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #404040;
+            background: #1a1a1a;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 20px;
+            outline: none;
+        }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-buttons button {
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #btn-save-ip { background: var(--primary-green); color: white; }
+        #btn-save-ip:hover { transform: scale(1.05); }
+        #btn-close-modal { background: transparent; color: white; }
+        #btn-close-modal:hover { color: #b3b3b3; }
     </style>
 </head>
 <body>
@@ -108,8 +155,8 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
-                <i class="fab fa-spotify" style="color: #1db954; font-size: 32px;"></i>
-                <span style="font-size: 24px; font-weight: 900; letter-spacing: -0.5px;">45 personal spotify</span>
+                <i class="fab fa-spotify" style="color: var(--primary-green); font-size: 32px;"></i>
+                <span style="font-size: 24px; font-weight: 900; letter-spacing: -0.5px; font-family: 'Outfit', sans-serif;">45 personal spotify</span>
             </div>
             <nav class="menu">
                 <a href="#" id="nav-home" class="active"><i class="fas fa-home"></i> Home</a>
@@ -131,12 +178,13 @@
                 <div class="nav-arrows">
                     <i class="fas fa-chevron-left" id="btn-back" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer;"></i>
                     <i class="fas fa-sync-alt" id="btn-refresh" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer; margin-left:10px;" title="Hard Refresh UI"></i>
+                    <i class="fas fa-mobile-alt" id="btn-connect-mobile" style="background: rgba(0,0,0,0.5); padding: 10px 12px; border-radius: 50%; cursor: pointer; margin-left:10px; color: var(--primary-green); display: none;" title="Connect to Computer IP"></i>
                 </div>
-                <div class="user-profile"><img src="https://ui-avatars.com/api/?name=User&background=1db954&color=fff"><span>User</span><i class="fas fa-caret-down"></i></div>
+                <div class="user-profile"><img src="https://ui-avatars.com/api/?name=User&background=d946ef&color=fff"><span>User</span><i class="fas fa-caret-down"></i></div>
             </header>
 
             <section class="content-view" id="home">
-                <h1 style="font-size: 48px;">Good Evening</h1>
+                <h1 style="font-size: 48px; font-weight: 800; font-family: 'Outfit', sans-serif; letter-spacing: -1px;">Spotify Desktop</h1>
                 <div class="recent-grid">
                     <div class="recent-card"><img src="https://upload.wikimedia.org/wikipedia/en/3/39/The_Weeknd_-_Starboy.png"><span>Starboy Collection</span></div>
                     <div class="recent-card"><img src="https://upload.wikimedia.org/wikipedia/en/4/45/Divide_cover.png"><span>Ed Sheeran Mix</span></div>
@@ -215,7 +263,7 @@
                     <h4 id="player-title" style="cursor: pointer; text-decoration: underline;">Welcome</h4>
                     <p id="player-artist">Ready to play...</p>
                 </div>
-                <i class="fas fa-plus-circle" id="btn-add-current-playlist" style="cursor: pointer; color: #1db954; font-size: 20px; margin-left: 20px; display: none;"></i>
+                <i class="fas fa-plus-circle" id="btn-add-current-playlist" style="cursor: pointer; color: var(--primary-green); font-size: 20px; margin-left: 20px; display: none;"></i>
                 <div class="playlist-dropdown" id="playlist-select-menu"><h4>Add to playlist</h4><div id="dropdown-playlist-list"></div></div>
             </div>
 
@@ -237,8 +285,30 @@
         </footer>
     </div>
     
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav">
+        <a href="#" id="m-nav-home" class="active"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="#" id="m-nav-search"><i class="fas fa-search"></i><span>Search</span></a>
+        <a href="#" id="m-nav-library"><i class="fas fa-book"></i><span>Library</span></a>
+    </nav>
+
     <div class="toast" id="toast-msg">Added to Playlist Successfully!</div>
+
+    <!-- Connect Modal -->
+    <div id="connect-modal" class="modal hidden">
+        <div class="modal-content">
+            <i class="fas fa-network-wired" style="font-size: 40px; color: var(--primary-green); margin-bottom: 15px;"></i>
+            <h3>Connect to Computer</h3>
+            <p>Enter your computer's local IP address to sync music with the mobile app.</p>
+            <input type="text" id="input-backend-ip" placeholder="e.g. 192.168.1.15">
+            <div class="modal-buttons">
+                <button id="btn-save-ip">Save & Connect</button>
+                <button id="btn-close-modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <audio id="audio-engine"></audio>
-    <script src="app.js"></script>
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>

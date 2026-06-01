@@ -5,17 +5,12 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:8.2.0"
+        classpath "com.android.tools.build:gradle:8.5.1"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// Repositories are managed in settings.gradle
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

@@ -1,26 +1,30 @@
 /* Spotify Web Premium Styles */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@500;700&display=swap');
 
 :root {
-    --bg-base: #000000;
-    --bg-elevated: #121212;
-    --bg-highlight: #1a1a1a;
-    --primary-green: #1db954;
+    --bg-base: #03000a; /* Cyber Space Void */
+    --bg-elevated: rgba(18, 12, 36, 0.45); /* Frosted Amethyst Glass */
+    --bg-highlight: rgba(168, 85, 247, 0.15); /* Glowing violet highlight */
+    --primary-green: #d946ef; /* Cyber Neon Magenta accent */
+    --accent-secondary: #06b6d4; /* Glowing Teal */
     --text-base: #ffffff;
     --text-sub: #b3b3b3;
-    --bg-card: #181818;
-    --bg-card-hover: #282828;
+    --bg-card: rgba(25, 18, 45, 0.4);
+    --bg-card-hover: rgba(168, 85, 247, 0.25);
+    --glass-border: rgba(168, 85, 247, 0.22);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Inter', sans-serif;
 }
 
 body {
-    background-color: var(--bg-base);
+    background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 45%), 
+                radial-gradient(circle at 90% 80%, rgba(217, 70, 239, 0.12) 0%, rgba(0, 0, 0, 0) 50%), 
+                var(--bg-base);
     color: var(--text-base);
     overflow: hidden;
     height: 100vh;
@@ -42,7 +46,10 @@ body {
 
 /* Sidebar */
 .sidebar {
-    background-color: var(--bg-base);
+    background: rgba(10, 5, 20, 0.6);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-right: 1px solid var(--glass-border);
     padding: 24px 12px;
     display: flex;
     flex-direction: column;
@@ -62,10 +69,13 @@ body {
     font-size: 24px;
     font-weight: 700;
     padding-left: 12px;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-base);
 }
 
 .logo i {
     font-size: 32px;
+    color: var(--primary-green);
 }
 
 .menu {
@@ -82,11 +92,17 @@ body {
     align-items: center;
     gap: 16px;
     font-weight: 600;
-    transition: color 0.3s;
+    transition: all 0.3s;
+    border-radius: 8px;
 }
 
 .menu a:hover, .menu a.active {
     color: var(--text-base);
+    background: var(--bg-highlight);
+}
+
+.menu a.active {
+    border-left: 3px solid var(--primary-green);
 }
 
 .playlists h3 {
@@ -117,7 +133,7 @@ body {
 
 /* Main Content */
 .main-content {
-    background: linear-gradient(180deg, #1f1f1f 0%, #121212 100%);
+    background: transparent;
     padding: 0 32px;
     overflow-y: auto;
     position: relative;
@@ -255,8 +271,10 @@ h2 { margin: 24px 0; font-size: 24px; }
 /* Player Bar */
 .player-bar {
     grid-column: 1 / -1;
-    background-color: #181818;
-    border-top: 1px solid #282828;
+    background: rgba(16, 10, 30, 0.75);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid var(--glass-border);
     padding: 0 16px;
     display: flex;
     align-items: center;
@@ -423,3 +441,179 @@ h2 { margin: 24px 0; font-size: 24px; }
 .volume-progress { background-color: var(--text-base); height: 100%; border-radius: 2px; }
 
 .hidden { display: none; }
+
+/* ?? PREMIUM THEATER VIEW STYLES */
+.theater-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(to bottom, #1a1a1a, #000000);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theater-view.hidden-theater {
+    transform: translateY(100%);
+}
+
+.theater-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.theater-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.theater-meta {
+    text-align: center;
+}
+
+.theater-meta span {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #b3b3b3;
+}
+
+.theater-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    max-width: 500px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.video-container {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #111;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    position: relative;
+}
+
+#youtube-player {
+    width: 100%;
+    height: 100%;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2; /* Prevents direct iframe interaction but allows us to capture taps */
+    background: transparent;
+}
+
+.theater-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+}
+
+.track-text h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: white;
+}
+
+.track-text p {
+    font-size: 16px;
+    color: #b3b3b3;
+}
+
+.btn-heart {
+    background: none;
+    border: none;
+    color: #b3b3b3;
+    font-size: 24px;
+}
+
+.theater-controls {
+    margin-top: 40px;
+}
+
+.theater-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.theater-progress-container span {
+    font-size: 12px;
+    color: #b3b3b3;
+    min-width: 35px;
+}
+
+.theater-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #4f4f4f;
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+}
+
+#theater-progress-fill {
+    height: 100%;
+    background: white;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+
+.theater-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.theater-buttons button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.theater-buttons button:active {
+    transform: scale(0.9);
+}
+
+.theater-buttons .play-main {
+    font-size: 64px;
+    color: white;
+}
+
+/* Glassmorphism for Theater Overlay */
+.theater-view::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(217, 70, 239, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}

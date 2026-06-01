@@ -14,6 +14,15 @@ let manualQueue = [];  // Manual "Play Next" queue where users add songs explici
 let isShuffled = false;
 let isRepeated = false;
 
+// API Configuration
+// TIP: When running on a phone (APK), you must set 'backend_ip' in localStorage to your computer's local IP (e.g., 192.168.1.10)
+let savedIp = localStorage.getItem('backend_ip');
+let API_BASE_URL = savedIp 
+    ? `http://${savedIp}:8000`
+    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://127.0.0.1:8000' 
+        : `http://${window.location.hostname}:8000`);
+
 // Library & Playlists
 let playlists = JSON.parse(localStorage.getItem('spotify_web_playlists')) || {
     "liked": { name: "Liked Songs", tracks: [] }
@@ -129,11 +138,47 @@ function setupEventListeners() {
         });
     }
 
-    document.getElementById('nav-home').addEventListener('click', () => showView('home'));
     document.getElementById('nav-search').addEventListener('click', () => showView('search-view'));
+    document.getElementById('m-nav-home')?.addEventListener('click', () => showView('home'));
+    document.getElementById('m-nav-search')?.addEventListener('click', () => showView('search-view'));
+    document.getElementById('m-nav-library')?.addEventListener('click', () => showView('playlist-view'));
+    
     document.getElementById('btn-back').addEventListener('click', goBack);
     document.getElementById('btn-refresh').addEventListener('click', () => location.reload());
     document.getElementById('btn-create-playlist').addEventListener('click', createPlaylist);
+
+    // --- Connect Modal Listeners ---
+    const btnConnect = document.getElementById('btn-connect-mobile');
+    const connectModal = document.getElementById('connect-modal');
+    const btnSaveIp = document.getElementById('btn-save-ip');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const inputIp = document.getElementById('input-backend-ip');
+
+    if (btnConnect) {
+        btnConnect.addEventListener('click', () => {
+            inputIp.value = localStorage.getItem('backend_ip') || "";
+            connectModal.classList.remove('hidden');
+        });
+    }
+
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener('click', () => connectModal.classList.add('hidden'));
+    }
+
+    if (btnSaveIp) {
+        btnSaveIp.addEventListener('click', () => {
+            const ip = inputIp.value.trim();
+            if (ip) {
+                localStorage.setItem('backend_ip', ip);
+                showToast("Connected to Computer! 🚀");
+                setTimeout(() => location.reload(), 1000); // Reload to apply new connection
+            } else {
+                localStorage.removeItem('backend_ip');
+                location.reload();
+            }
+            connectModal.classList.add('hidden');
+        });
+    }
 
     btnAddCurrent.addEventListener('click', (e) => { e.stopPropagation(); togglePlaylistMenu(); });
     document.addEventListener('click', () => playlistDropdown.style.display = 'none');
@@ -372,29 +417,23 @@ function showView(viewId) {
 }
 
 function _internalShowView(viewId, updateSidebar = true) {
-    const views = document.querySelectorAll('.content-view');
-    views.forEach(v => {
-        v.style.opacity = "0";
-        v.style.transform = "translateY(20px) scale(0.98)";
-        setTimeout(() => v.classList.add('hidden'), 300);
-    });
-
-    setTimeout(() => {
-        const view = document.getElementById(viewId);
-        if (view) {
-            view.classList.remove('hidden');
-            setTimeout(() => {
-                view.style.opacity = "1";
-                view.style.transform = "translateY(0) scale(1)";
-                view.style.transition = "all 0.6s cubic-bezier(0.23, 1, 0.32, 1)";
-            }, 50);
-        }
-    }, 310);
+    document.querySelectorAll('.content-view').forEach(v => v.classList.add('hidden'));
+    const view = document.getElementById(viewId);
+    if (view) view.classList.remove('hidden');
 
     if (updateSidebar) {
-        document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
-        if (viewId === 'home') document.getElementById('nav-home').classList.add('active');
-        if (viewId === 'search-view') document.getElementById('nav-search').classList.add('active');
+        document.querySelectorAll('.menu a, .mobile-nav a').forEach(a => a.classList.remove('active'));
+        if (viewId === 'home') {
+            document.getElementById('nav-home').classList.add('active');
+            document.getElementById('m-nav-home')?.classList.add('active');
+        }
+        if (viewId === 'search-view') {
+            document.getElementById('nav-search').classList.add('active');
+            document.getElementById('m-nav-search')?.classList.add('active');
+        }
+        if (viewId === 'playlist-view') {
+            document.getElementById('m-nav-library')?.classList.add('active');
+        }
     }
 }
 
@@ -408,7 +447,7 @@ async function performSearch(query) {
     document.getElementById('results-list').innerHTML = `<p style="padding: 20px; color: grey;">Searching global music database for '${query}'...</p>`;
 
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}`);
         const tracks = await response.json();
         renderTrackList(tracks, document.getElementById('results-list'));
     } catch (err) { console.error(err); }
@@ -486,16 +525,7 @@ async function playTrack(track) {
     btnAddCurrent.style.display = 'block';
 
     try {
-        // V2 DYNAMIC COLOR SYNC
-        const hueShift = Math.floor(Math.random() * 360);
-        document.body.style.filter = `hue-rotate(${hueShift}deg)`;
-        setTimeout(() => document.body.style.filter = "none", 1000); 
-
-        const colors = ["#00f2ff", "#ff00ff", "#1db954", "#ff4632", "#7358ff"];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        document.documentElement.style.setProperty('--primary-green', randomColor);
-
-        const response = await fetch(`http://127.0.0.1:8000/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
+        const response = await fetch(`${API_BASE_URL}/api/stream?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist)}`);
         const data = await response.json();
         
         if (data.url) {

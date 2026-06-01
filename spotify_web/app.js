@@ -82,12 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     renderSidebarPlaylists();
     setupEventListeners();
-
-    // Auto-show connect modal if no IP is set on startup
-    if (!localStorage.getItem('backend_ip')) {
-        const connectModal = document.getElementById('connect-modal');
-        if (connectModal) setTimeout(() => connectModal.classList.remove('hidden'), 800);
-    }
 });
 
 function setupEventListeners() {
