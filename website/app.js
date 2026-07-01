@@ -953,7 +953,17 @@ function togglePlay() {
         }
     } else {
         if (!audioEngine.src) return;
-        isPlaying ? audioEngine.pause() : audioEngine.play().catch(() => {});
+        if (isPlaying) {
+            audioEngine.pause();
+            if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+            }
+        } else {
+            audioEngine.play().catch(() => {});
+            if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e) {}
+            }
+        }
         isPlaying = !isPlaying;
     }
     updatePlayButton();
@@ -1007,6 +1017,12 @@ function updateProgress() {
                     }),
                     '*'
                 );
+                // Periodically ensure the play/pause state matches
+                if (isPlaying) {
+                    videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                } else {
+                    videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                }
             } catch(e) {}
         }
     }
@@ -1080,8 +1096,14 @@ function syncVideoIframeToAudio() {
                 }),
                 '*'
             );
+            // Ensure play/pause state is synchronized
+            if (isPlaying) {
+                videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            } else {
+                videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            }
         } catch(err) {
-            console.warn("Failed to post seekTo command to video iframe:", err);
+            console.warn("Failed to post commands to video iframe:", err);
         }
     }
 }
