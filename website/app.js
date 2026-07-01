@@ -18,6 +18,7 @@ let autoplayRecommendations = []; // Related tracks for autoplay
 let hasPrefetchedNext = false;
 let isBackupPlaying = false; // Flag to track if we fell back to the YouTube iframe
 let backupEndTimer = null; // Timer to auto-advance to next song on iframe play end
+let lastSyncedSecond = -1; // Prevent spamming seek commands to YouTube iframe
 let currentSearchQuery = "";
 let currentSearchOffset = 0;
 let isSearchLoading = false;
@@ -811,6 +812,7 @@ async function playTrack(track) {
     audioEngine.pause();
     audioEngine.src = "";
     isBackupPlaying = false;
+    lastSyncedSecond = -1; // Reset periodic sync reference
     if (backupEndTimer) {
         clearTimeout(backupEndTimer);
         backupEndTimer = null;
@@ -994,7 +996,8 @@ function updateProgress() {
 
         // Periodically sync video timeline to audio timeline (every 4 seconds) to prevent drift
         const sec = Math.floor(audioEngine.currentTime);
-        if (sec > 0 && sec % 4 === 0 && isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+        if (sec > 0 && sec % 4 === 0 && sec !== lastSyncedSecond && isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+            lastSyncedSecond = sec;
             try {
                 videoIframe.contentWindow.postMessage(
                     JSON.stringify({
