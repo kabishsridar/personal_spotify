@@ -55,35 +55,38 @@ async def proxy_stream(url: str, request: Request):
         
     client = httpx.AsyncClient()
     
-    async def stream_generator():
-        try:
-            async with client.stream("GET", url, headers=headers, follow_redirects=True) as response:
-                async for chunk in response.aiter_bytes(chunk_size=40960):
-                    yield chunk
-        finally:
-            await client.aclose()
-            
-    content_type = "audio/webm"
-    content_range = ""
-    status_code = 200
     try:
-        async with httpx.AsyncClient() as c:
-            head_res = await c.head(url, headers=headers, follow_redirects=True)
-            content_type = head_res.headers.get("Content-Type", "audio/webm")
-            content_range = head_res.headers.get("Content-Range", "")
-            if head_res.status_code == 206:
-                status_code = 206
-    except Exception:
-        pass
-        
+        # Build and send a streaming GET request directly to YouTube in one go
+        req = client.build_request("GET", url, headers=headers)
+        response = await client.send(req, stream=True)
+    except Exception as e:
+        await client.aclose()
+        print(f"Proxy Connection Error: {e}")
+        return Response(status_code=502, content="Failed to connect to stream source")
+
+    # Extract critical streaming headers to forward
+    content_type = response.headers.get("Content-Type", "audio/webm")
+    content_range = response.headers.get("Content-Range", "")
+    content_length = response.headers.get("Content-Length", "")
+    
     resp_headers = {
         "Content-Type": content_type,
         "Accept-Ranges": "bytes"
     }
     if content_range:
         resp_headers["Content-Range"] = content_range
+    if content_length:
+        resp_headers["Content-Length"] = content_length
         
-    return StreamingResponse(stream_generator(), status_code=status_code, headers=resp_headers)
+    async def stream_generator():
+        try:
+            async for chunk in response.aiter_bytes(chunk_size=40960):
+                yield chunk
+        finally:
+            await response.aclose()
+            await client.aclose()
+            
+    return StreamingResponse(stream_generator(), status_code=response.status_code, headers=resp_headers)
 
 
 # --- Static File Handling ---
