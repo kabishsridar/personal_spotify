@@ -123,6 +123,33 @@ function setupEventListeners() {
     btnRepeat.addEventListener('click', toggleRepeat);
     btnToggleQueue.addEventListener('click', toggleQueueSidebar);
     audioEngine.addEventListener('timeupdate', () => { if (!isSeeking) updateProgress(); });
+    
+    // Airtight Video-Audio Synchronization Event Listeners
+    audioEngine.addEventListener('waiting', () => {
+        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+            try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+        }
+    });
+    audioEngine.addEventListener('playing', () => {
+        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+            try {
+                videoIframe.contentWindow.postMessage(
+                    JSON.stringify({
+                        event: 'command',
+                        func: 'seekTo',
+                        args: [audioEngine.currentTime, true]
+                    }),
+                    '*'
+                );
+                videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            } catch(e) {}
+        }
+    });
+    audioEngine.addEventListener('pause', () => {
+        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+            try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+        }
+    });
     audioEngine.addEventListener('ended', () => {
         if (isRepeated) playTrack(currentTrack);
         else playNextTrack();
@@ -1004,9 +1031,9 @@ function updateProgress() {
             prefetchNextTrack();
         }
 
-        // Periodically sync video timeline to audio timeline (every 4 seconds) to prevent drift
+        // Periodically sync video timeline to audio timeline (every 2 seconds) to prevent drift
         const sec = Math.floor(audioEngine.currentTime);
-        if (sec > 0 && sec % 4 === 0 && sec !== lastSyncedSecond && isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+        if (sec > 0 && sec % 2 === 0 && sec !== lastSyncedSecond && isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
             lastSyncedSecond = sec;
             try {
                 videoIframe.contentWindow.postMessage(
