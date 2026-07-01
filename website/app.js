@@ -34,13 +34,24 @@ function withTimeout(promise, ms) {
 }
 
 // API Configuration
-// TIP: When running on a phone (APK), you must set 'backend_ip' in localStorage to your computer's local IP (e.g., 192.168.1.10)
+// TIP: When running on a phone, you must set 'backend_ip' in localStorage to your computer's local IP (e.g., 192.168.1.10) or a cloud backend URL
 let savedIp = localStorage.getItem('backend_ip');
-let API_BASE_URL = savedIp 
-    ? `http://${savedIp}:8000`
-    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-        ? 'http://127.0.0.1:8000' 
-        : `http://${window.location.hostname}:8000`);
+let API_BASE_URL = window.location.origin; // Default to host origin
+
+if (savedIp) {
+    if (savedIp.startsWith('http://') || savedIp.startsWith('https://')) {
+        API_BASE_URL = savedIp;
+    } else if (savedIp.includes('.') && !savedIp.match(/^[0-9.]+$/)) {
+        API_BASE_URL = `https://${savedIp}`;
+    } else {
+        API_BASE_URL = `http://${savedIp}:8000`;
+    }
+} else {
+    // If no saved IP, default to local machine if running locally
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        API_BASE_URL = 'http://127.0.0.1:8000';
+    }
+}
 
 // Library & Playlists
 let playlists = JSON.parse(localStorage.getItem('spotify_web_playlists')) || {
