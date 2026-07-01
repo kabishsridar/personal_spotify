@@ -53,12 +53,12 @@ async def proxy_stream(url: str, request: Request):
     if "range" in request.headers:
         headers["Range"] = request.headers["range"]
         
-    client = httpx.AsyncClient()
+    client = httpx.AsyncClient(timeout=None)
     
     try:
         # Build and send a streaming GET request directly to YouTube in one go
         req = client.build_request("GET", url, headers=headers)
-        response = await client.send(req, stream=True)
+        response = await client.send(req, stream=True, follow_redirects=True)
     except Exception as e:
         await client.aclose()
         print(f"Proxy Connection Error: {e}")
