@@ -253,7 +253,13 @@ function setupEventListeners() {
         if (isSeeking) updateSeekFromEvent(e);
         if (isVoluming) updateVolumeFromEvent(e);
     });
-    window.addEventListener('mouseup', () => { isSeeking = false; isVoluming = false; });
+    window.addEventListener('mouseup', () => {
+        if (isSeeking) {
+            isSeeking = false;
+            syncVideoIframeToAudio();
+        }
+        isVoluming = false;
+    });
 
     function updateSeekFromEvent(e) {
         const rect = progressBarBg.getBoundingClientRect();
@@ -265,22 +271,6 @@ function setupEventListeners() {
             const seconds = percent * totalDuration;
             if (audioEngine.duration) {
                 audioEngine.currentTime = seconds;
-            }
-            
-            // Sync with YouTube Video Iframe Timeline!
-            if (videoIframe && videoIframe.src) {
-                try {
-                    videoIframe.contentWindow.postMessage(
-                        JSON.stringify({
-                            event: 'command',
-                            func: 'seekTo',
-                            args: [seconds, true]
-                        }),
-                        '*'
-                    );
-                } catch(err) {
-                    console.warn("Failed to post seekTo command to video iframe:", err);
-                }
             }
 
             // If using backup end timer, we must recalculate the remaining duration!
@@ -1072,6 +1062,25 @@ function formatTime(seconds) {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function syncVideoIframeToAudio() {
+    if (videoIframe && videoIframe.src && currentTrack) {
+        const seconds = audioEngine.currentTime || 0;
+        console.log("[Seek Sync] Syncing video timeline to:", seconds);
+        try {
+            videoIframe.contentWindow.postMessage(
+                JSON.stringify({
+                    event: 'command',
+                    func: 'seekTo',
+                    args: [seconds, true]
+                }),
+                '*'
+            );
+        } catch(err) {
+            console.warn("Failed to post seekTo command to video iframe:", err);
+        }
+    }
 }
 
 // Final Cleanup: Duplicate definitions removed.
