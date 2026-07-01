@@ -846,7 +846,7 @@ async function playTrack(track) {
 
     if (data && data.url && currentTrack && currentTrack.id === track.id) {
         currentTrack.youtube_id = data.id; // Store ID for video
-        audioEngine.src = data.url;
+        audioEngine.src = `${API_BASE_URL}/api/proxy?url=${encodeURIComponent(data.url)}`;
         audioEngine.load(); // Clean reset & load new source
         audioEngine.play().then(() => {
             console.log("Playback started successfully.");

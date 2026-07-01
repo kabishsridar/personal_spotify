@@ -40,6 +40,52 @@ async def stream(title: str, artist: str, request: Request):
     data = streamer.find_track_url(title, artist, user_agent=user_agent)
     return data
 
+@app.get("/api/proxy")
+async def proxy_stream(url: str, request: Request):
+    """Proxy audio stream to bypass YouTube IP-locking restrictions."""
+    import httpx
+    from fastapi.responses import StreamingResponse
+    
+    headers = {
+        "User-Agent": request.headers.get("user-agent", "Mozilla/5.0"),
+        "Accept-Encoding": "identity",
+    }
+    if "range" in request.headers:
+        headers["Range"] = request.headers["range"]
+        
+    client = httpx.AsyncClient()
+    
+    async def stream_generator():
+        try:
+            async with client.stream("GET", url, headers=headers, follow_redirects=True) as response:
+                async for chunk in response.aiter_bytes(chunk_size=40960):
+                    yield chunk
+        finally:
+            await client.aclose()
+            
+    content_type = "audio/webm"
+    content_range = ""
+    status_code = 200
+    try:
+        async with httpx.AsyncClient() as c:
+            head_res = await c.head(url, headers=headers, follow_redirects=True)
+            content_type = head_res.headers.get("Content-Type", "audio/webm")
+            content_range = head_res.headers.get("Content-Range", "")
+            if head_res.status_code == 206:
+                status_code = 206
+    except Exception:
+        pass
+        
+    resp_headers = {
+        "Content-Type": content_type,
+        "Accept-Ranges": "bytes"
+    }
+    if content_range:
+        resp_headers["Content-Range"] = content_range
+        
+    return StreamingResponse(stream_generator(), status_code=status_code, headers=resp_headers)
+
+
 # --- Static File Handling ---
 
 # Serve the frontend files
