@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; media-src * data: blob:; frame-src *; connect-src *;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spotify Standalone 💎 Glass Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --glass: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --accent: #1DB954;
+            --bg: #000000;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-container {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 180px;
+            background: linear-gradient(180deg, #121212 0%, #000000 100%);
+        }
+
+        h1, h2 { font-family: 'Outfit', sans-serif; }
+
+        /* 💎 GLASS PLAYER BAR */
+        .player-bar {
+            position: fixed;
+            bottom: 85px; /* Spaced perfectly above nav */
+            left: 10px;
+            right: 10px;
+            height: 75px;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 1100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .current-track {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .current-track img {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            object-fit: cover;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .track-info { min-width: 0; }
+        .track-info h4 { margin: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-info p { margin: 0; font-size: 12px; color: #b3b3b3; }
+
+        .player-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            gap: 8px;
+        }
+
+        .control-btns {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 20px;
+        }
+
+        .play-main {
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .play-main:active { transform: scale(0.9); }
+
+        .progress-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            color: #888;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .progress-fill {
+            position: absolute;
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        /* 📱 BOTTOM NAV */
+        .mobile-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: #000;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #111;
+            z-index: 1200;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .mobile-nav a {
+            color: #666;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .mobile-nav a.active { color: white; }
+        .mobile-nav i { font-size: 22px; }
+
+        /* 🎭 THEATER VIEW */
+        .theater-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .theater-view.hidden-theater { transform: translateY(100%); }
+        .content-view.hidden { display: none !important; }
+
+        /* Search Cards */
+        .track-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            background: var(--glass);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--glass-border);
+        }
+        .track-card img { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; }
+        .track-card .info { flex: 1; min-width: 0; }
+        .track-card .info .name { font-weight: 700; font-size: 15px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-card .info .artist { font-size: 12px; color: #b3b3b3; }
+        .track-card .play-icon { font-size: 24px; color: var(--accent); }
+
+        .loader { padding: 40px; text-align: center; color: #888; font-style: italic; }
+
+        /* Grid */
+        .genre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .genre-card {
+            height: 100px;
+            border-radius: 12px;
+            padding: 16px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .recent-grid { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 10px; scrollbar-width: none; }
+        .recent-card {
+            min-width: 140px;
+            background: var(--glass);
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+        }
+        .recent-card img { width: 100%; aspect-ratio: 1/1; border-radius: 12px; margin-bottom: 10px; }
+        .recent-card span { font-size: 12px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h1 style="font-size: 26px; margin: 0; font-weight: 800; font-family: 'Outfit'; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px; color: white;"><i class="fab fa-spotify" style="color: var(--accent); font-size: 32px;"></i> Spotify Premium</h1>
+                <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">US</div>
+            </header>
+
+            <!-- Home Section -->
+            <section class="content-view" id="home">
+                <div class="recent-grid">
+                    <div class="recent-card" onclick="performSearch('Starboy')"><img src="https://upload.wikimedia.org/wikipedia/en/3/39/The_Weeknd_-_Starboy.png"><span>Starboy Mix</span></div>
+                    <div class="recent-card" onclick="performSearch('Ed Sheeran')"><img src="https://upload.wikimedia.org/wikipedia/en/4/45/Divide_cover.png"><span>Ed Sheeran</span></div>
+                    <div class="recent-card" onclick="performSearch('ARR Hits')"><img src="https://i.scdn.co/image/ab67706f000000020a597a78377fe725841cb027"><span>ARR Classics</span></div>
+                </div>
+
+                <h2 style="margin-top: 40px; font-size: 22px;">Jump back in</h2>
+                <div class="genre-grid">
+                    <div class="genre-card" style="background: linear-gradient(135deg, #006450, #00d2aa);" onclick="performSearch('Tamil 2024')">Tamil Hits</div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #8d67ab, #c4efd9);" onclick="performSearch('Hindi Global')">Hindi Global</div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #1e3264, #1ed760);" onclick="performSearch('English Pop')">English Pop</div>
+                    <div class="genre-card" style="background: linear-gradient(135deg, #e91429, #ffd1bf);" onclick="performSearch('Malayalam Hits')">Malayalam</div>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section class="content-view hidden" id="search-view">
+                <h2 style="font-size: 32px;">Search</h2>
+                <div style="position: relative; margin: 20px 0;">
+                    <i class="fas fa-search" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #888;"></i>
+                    <input type="text" id="web-search-input" placeholder="What do you want to listen to?" 
+                           style="width: 100%; padding: 15px 15px 15px 55px; border-radius: 12px; border: 1px solid #333; background: #1a1a1a; color: white; font-size: 16px; outline: none; box-sizing: border-box;">
+                </div>
+                <div id="results-list"></div>
+            </section>
+
+            <!-- Library Section -->
+            <section class="content-view hidden" id="playlist-view">
+                <div style="display: flex; gap: 20px; padding: 20px 20px 0;">
+                    <h2 id="tab-playlists" style="font-size: 24px; color: white; cursor: pointer;" onclick="switchLibraryTab('playlists')">Playlists</h2>
+                    <h2 id="tab-downloads" style="font-size: 24px; color: #888; cursor: pointer;" onclick="switchLibraryTab('downloads')">Downloads</h2>
+                </div>
+
+                <!-- ☁️ RENDER CLOUD SYNC CONFIGURATION -->
+                <div style="margin: 20px; padding: 16px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h4 style="margin:0; font-family:'Outfit'; font-size:16px; display:flex; align-items:center; gap:8px;"><i class="fas fa-cloud" style="color:var(--accent);"></i> Cloud Sync Backup</h4>
+                        <i class="fas fa-cog" style="font-size:18px; color:#888; cursor:pointer;" onclick="toggleCloudConfig()"></i>
+                    </div>
+                    <div id="cloud-config-block" style="display:none; margin-top:15px; flex-direction:column; gap:10px;">
+                        <input type="text" id="cloud-server-url" placeholder="https://your-app.onrender.com" style="width:100%; padding:10px; background:#222; border:1px solid #444; border-radius:8px; color:white; font-size:12px; box-sizing:border-box; outline:none;">
+                        <p style="margin: 0; font-size: 10px; color: #aaa; line-height: 1.4;"><i class="fas fa-info-circle" style="color:var(--accent);"></i> Entering your Render Server URL enables both automatic database cloud syncing and ultra-stable, premium background streaming bypass!</p>
+                        <div style="display:flex; gap:10px; width:100%;">
+                            <button onclick="cloudBackup()" style="flex:1; padding:10px; background:var(--accent); color:black; border:none; border-radius:20px; font-weight:bold; font-size:12px; cursor:pointer;">☁️ Backup</button>
+                            <button onclick="cloudRestore()" style="flex:1; padding:10px; background:#444; color:white; border:none; border-radius:20px; font-weight:bold; font-size:12px; cursor:pointer;">🔄 Restore</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="library-content" style="padding: 20px; padding-bottom: 80px;"></div>
+            </section>
+        </main>
+
+        <!-- 💎 GLASS PLAYER BAR -->
+        <footer class="player-bar">
+            <div class="current-track" onclick="openTheater()">
+                <img src="https://via.placeholder.com/150/1DB954/FFFFFF?text=Music" id="player-thumb">
+                <div class="track-info">
+                    <h4 id="player-title">Not Playing</h4>
+                    <p id="player-artist">Select a song</p>
+                </div>
+            </div>
+
+            <div class="player-controls">
+                <div class="control-btns">
+                    <i class="fas fa-step-backward" id="btn-prev" style="color: #b3b3b3; font-size: 18px;"></i>
+                    <div class="play-main" id="play-pause-btn" style="pointer-events: auto;"><i class="fas fa-play" style="pointer-events: none;"></i></div>
+                    <i class="fas fa-step-forward" id="btn-next" style="color: #b3b3b3; font-size: 18px;"></i>
+                </div>
+                <div class="progress-container">
+                    <span id="current-time">0:00</span>
+                    <div class="progress-bar"><div class="progress-fill" id="playback-progress"></div></div>
+                    <span id="total-time">0:00</span>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Bottom Nav -->
+        <nav class="mobile-nav">
+            <a href="#" id="m-nav-home" class="active"><i class="fas fa-home"></i><span>Home</span></a>
+            <a href="#" id="m-nav-search"><i class="fas fa-search"></i><span>Search</span></a>
+            <a href="#" id="m-nav-library"><i class="fas fa-book"></i><span>Library</span></a>
+        </nav>
+    </div>
+
+    <!-- 🎭 THEATER VIEW -->
+    <div id="theater-view" class="theater-view hidden-theater">
+        <div style="padding: 20px 25px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+            <i class="fas fa-chevron-down" style="font-size: 24px;" onclick="closeTheater()"></i>
+            <span style="font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #888;">NOW PLAYING</span>
+            <i class="fas fa-ellipsis-v" style="font-size: 18px; opacity: 0.5;"></i>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; padding: 10px 25px 30px; overflow-y: auto; justify-content: space-between;">
+            <!-- 📺 Centered 1/4th Screen Video Container with Pointer Blocking Overlay -->
+            <div style="width: 100%; display: flex; justify-content: center; align-items: center; margin: 10px 0; flex-shrink: 0;">
+                <div style="position: relative; width: 100%; height: 26vh; max-height: 220px; border-radius: 16px; overflow: hidden; background: #111; box-shadow: 0 16px 40px rgba(0,0,0,0.6); flex-shrink: 0;">
+                    <div id="youtube-player" style="width: 100%; height: 100%;"></div>
+                    <!-- Transparent Overlay to block controls, remove Youtube logo hover and prevent direct touches -->
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 10; pointer-events: auto;"></div>
+                </div>
+            </div>
+
+            <!-- 🎵 Song Info & Quick Action Panel -->
+            <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <div style="min-width: 0; flex: 1; margin-right: 15px;">
+                    <h1 id="theater-title" style="font-size: 24px; margin: 0; font-family: 'Outfit'; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: white;">Song Title</h1>
+                    <p id="theater-artist" style="font-size: 16px; color: #b3b3b3; margin: 6px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">Artist Name</p>
+                </div>
+                <!-- Action Icons (Download, Add to Playlist, Like) -->
+                <div style="display: flex; gap: 20px; align-items: center; flex-shrink: 0;">
+                    <i class="fas fa-download" id="theater-action-download" style="font-size: 20px; color: #b3b3b3; cursor: pointer; transition: color 0.2s;" onclick="theaterDownloadTrack()"></i>
+                    <i class="fas fa-folder-plus" id="theater-action-playlist" style="font-size: 20px; color: #b3b3b3; cursor: pointer; transition: color 0.2s;" onclick="theaterAddToPlaylist()"></i>
+                    <i class="far fa-heart" id="theater-action-like" style="font-size: 22px; color: var(--accent); cursor: pointer;"></i>
+                </div>
+            </div>
+
+            <!-- ⏱️ Spotify HSL Timeline Seekbar Panel -->
+            <div style="margin-top: 25px; flex-shrink: 0;">
+                <div id="theater-progress-bg" style="width: 100%; height: 12px; display: flex; align-items: center; cursor: pointer; position: relative; user-select: none; -webkit-user-select: none;">
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; overflow: visible; width: 100%;">
+                        <div id="theater-progress-fill" style="height: 100%; background: white; width: 0%; border-radius: 2px; transition: background-color 0.1s;"></div>
+                        <div id="theater-progress-handle" style="position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); width: 12px; height: 12px; border-radius: 50%; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.1s, background-color 0.1s;"></div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #b3b3b3; font-weight: 500;">
+                    <span id="theater-current-time">0:00</span>
+                    <span id="theater-total-time">0:00</span>
+                </div>
+            </div>
+
+            <!-- 🎮 Control Bar Panel -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding: 0; flex-shrink: 0;">
+                <i class="fas fa-random" id="theater-btn-shuffle" style="font-size: 20px; color: #555;"></i>
+                <i class="fas fa-step-backward" id="theater-btn-prev" style="font-size: 26px;"></i>
+                <div id="theater-play-pause" style="font-size: 72px; pointer-events: auto; display: flex; align-items: center; justify-content: center; height: 72px;"><i class="fas fa-play-circle" style="pointer-events: none;"></i></div>
+                <i class="fas fa-step-forward" id="theater-btn-next" style="font-size: 26px;"></i>
+                <i class="fas fa-redo" id="theater-btn-repeat" style="font-size: 20px; color: #555;"></i>
+            </div>
+        </div>
+    </div>
+
+    <audio id="local-player" style="display:none;"></audio>
+
+    <!-- Playlist Modal -->
+    <div id="playlist-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index: 3000; justify-content:center; align-items:center;">
+        <div style="background:#1a1a1a; padding:20px; border-radius:12px; width:85%; max-height: 80vh; display: flex; flex-direction: column;">
+            <h3 style="margin-top:0;">Add to Playlist</h3>
+            <div id="existing-playlists-container" style="overflow-y: auto; max-height: 250px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamically populated -->
+            </div>
+            <input type="text" id="playlist-name-input" placeholder="Or create new playlist..." style="width:100%; padding:12px; margin-bottom:15px; background:#333; color:white; border:none; border-radius:8px; box-sizing:border-box;">
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closePlaylistModal()" style="padding:10px 20px; background:#444; color:white; border:none; border-radius:20px;">Cancel</button>
+                <button onclick="confirmAddToPlaylist()" style="padding:10px 20px; background:var(--accent); color:black; border:none; border-radius:20px; font-weight:bold;">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="capacitor.js"></script>
+    <script src="cordova.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
