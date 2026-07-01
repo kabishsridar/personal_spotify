@@ -19,6 +19,7 @@ let hasPrefetchedNext = false;
 let isBackupPlaying = false; // Flag to track if we fell back to the YouTube iframe
 let backupEndTimer = null; // Timer to auto-advance to next song on iframe play end
 let lastSyncedSecond = -1; // Prevent spamming seek commands to YouTube iframe
+let isLoadingTrack = false; // Suppress spurious pause events during track loading
 let currentSearchQuery = "";
 let currentSearchOffset = 0;
 let isSearchLoading = false;
@@ -146,7 +147,9 @@ function setupEventListeners() {
         }
     });
     audioEngine.addEventListener('pause', () => {
-        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
+        // Suppress spurious pause events fired by audioEngine.load() during track switching
+        if (isLoadingTrack || isSeeking) return;
+        if (isVideoOpen && videoIframe && videoIframe.src) {
             try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
         }
     });
@@ -865,8 +868,10 @@ async function playTrack(track) {
 
     if (data && data.url && currentTrack && currentTrack.id === track.id) {
         currentTrack.youtube_id = data.id; // Store ID for video
+        isLoadingTrack = true; // Suppress pause event from audioEngine.load()
         audioEngine.src = `${API_BASE_URL}/api/proxy?url=${encodeURIComponent(data.url)}`;
         audioEngine.load(); // Clean reset & load new source
+        isLoadingTrack = false;
         audioEngine.play().then(() => {
             console.log("Playback started successfully.");
         }).catch(err => {
@@ -875,7 +880,7 @@ async function playTrack(track) {
         isPlaying = true;
         updatePlayButton();
         
-        // Sync Video if sidebar is open
+        // Sync Video if sidebar is open - mute=1 because audio comes from proxy stream
         if (isVideoOpen) {
             videoIframe.src = `https://www.youtube.com/embed/${data.id}?autoplay=1&mute=1&controls=0&enablejsapi=1`;
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
