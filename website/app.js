@@ -24,6 +24,9 @@ let currentSearchQuery = "";
 let currentSearchOffset = 0;
 let isSearchLoading = false;
 let hasMoreSearchSongs = true;
+let ytPlayer = null; // YouTube IFrame API player instance
+let videoSyncInterval = null; // Interval for smooth video-audio sync
+let isVideoBuffering = false; // Track video buffer state
 
 function withTimeout(promise, ms) {
     return new Promise((resolve, reject) => {
@@ -106,17 +109,196 @@ const videoIframe = document.getElementById('video-iframe');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure the page can receive keyboard events even if no element is focused
+    // Make body focusable and set initial focus
+    if (!document.body.hasAttribute('tabindex')) {
+        document.body.setAttribute('tabindex', '0');
+    }
+    document.body.focus();
     console.log("Spotify Web Engine: THEATER MODE ONLINE 🎬🚀");
-    
+
+    // Initialize YouTube IFrame API for proper synchronization
+    initializeYouTubeAPI();
+
     // INITIALIZE VOLUME SYNC 🔊
     audioEngine.volume = 0.7;
     if (volumeProgress) volumeProgress.style.width = "70%";
-    
+
     renderSidebarPlaylists();
     setupEventListeners();
 });
 
+// YouTube IFrame API initialization
+function initializeYouTubeAPI() {
+    // Load YouTube IFrame API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    // API will call this function when ready
+    window.onYouTubeIframeAPIReady = function() {
+        console.log("YouTube IFrame API ready for synchronization");
+    };
+
+    // Listen to YouTube player state changes
+    window.onYouTubeStateChange = function(event) {
+        const state = event.data;
+        switch(state) {
+            case 1: // Playing
+                isVideoBuffering = false;
+                break;
+            case 2: // Paused
+                isVideoBuffering = false;
+                break;
+            case 3: // Buffering
+                isVideoBuffering = true;
+                break;
+            case 5: // Cued
+                isVideoBuffering = false;
+                break;
+        }
+    };
+}
+
+// Keyboard Shortcuts Handler
+function handleKeyboardShortcuts(e) {
+    // Don't trigger shortcuts when typing in inputs or editable elements
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+
+    // Normalise key identifier — prefer e.code (physical key) then fall back to e.key
+    const key = e.code || e.key;
+
+    // Keys we handle — always prevent default to stop browser scroll/navigation
+    const handled = {
+        'Space': true, ' ': true,
+        'ArrowUp': true, 'Up': true,
+        'ArrowDown': true, 'Down': true,
+        'ArrowLeft': true, 'Left': true,
+        'ArrowRight': true, 'Right': true,
+        'KeyL': true, 'l': true,
+        'KeyS': true, 's': true,
+        'KeyM': true, 'm': true,
+        'KeyV': true, 'v': true,
+        'KeyQ': true, 'q': true,
+        'KeyN': true, 'n': true,
+        'KeyP': true, 'p': true,
+        'KeyR': true, 'r': true,
+        'KeyF': true, 'f': true,
+        'Slash': true, '?': true,
+    };
+    if (!handled[key]) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Blur the currently focused element so Space doesn't re-click buttons
+    if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+    }
+
+    if (key === 'Space' || key === ' ') {
+        togglePlay();
+
+    } else if (key === 'ArrowUp' || key === 'Up') {
+        adjustVolume(0.1);
+
+    } else if (key === 'ArrowDown' || key === 'Down') {
+        adjustVolume(-0.1);
+
+    } else if (key === 'ArrowLeft' || key === 'Left') {
+        if (audioEngine.src && !isSeeking) {
+            audioEngine.currentTime = Math.max(0, audioEngine.currentTime - 10);
+            showToast('⏪ -10s');
+            if (isVideoOpen) syncVideoIframeToAudio();
+        } else if (isBackupPlaying) {
+            // For backup YouTube player, seek via postMessage
+            if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.max(0, (ytPlayer ? ytPlayer.getCurrentTime() : 0) - 10), true] }), '*'); } catch(e) {}
+            }
+            showToast('⏪ -10s');
+        }
+
+    } else if (key === 'ArrowRight' || key === 'Right') {
+        if (audioEngine.src && !isSeeking) {
+            audioEngine.currentTime = Math.min(audioEngine.duration || audioEngine.currentTime + 60, audioEngine.currentTime + 10);
+            showToast('⏩ +10s');
+            if (isVideoOpen) syncVideoIframeToAudio();
+        } else if (isBackupPlaying) {
+            if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [(ytPlayer ? ytPlayer.getCurrentTime() : 0) + 10, true] }), '*'); } catch(e) {}
+            }
+            showToast('⏩ +10s');
+        }
+
+    } else if (key === 'KeyL' || key === 'l') {
+        toggleRepeat();  // toggleRepeat already shows toast
+
+    } else if (key === 'KeyS' || key === 's') {
+        toggleShuffle(); // toggleShuffle already shows toast
+
+    } else if (key === 'KeyM' || key === 'm') {
+        toggleMute();
+        showToast(isMuted ? '🔇 Muted' : '🔊 Unmuted');
+
+    } else if (key === 'KeyV' || key === 'v') {
+        toggleVideoSidebar();
+
+    } else if (key === 'KeyQ' || key === 'q') {
+        toggleQueueSidebar();
+
+    } else if (key === 'KeyN' || key === 'n') {
+        playNextTrack();
+
+    } else if (key === 'KeyP' || key === 'p') {
+        playPreviousTrack();
+
+    } else if (key === 'KeyR' || key === 'r') {
+        restartTrack();
+
+    } else if (key === 'KeyF' || key === 'f') {
+        // Fullscreen the video panel if open, otherwise the page
+        const videoContainer = document.querySelector('.video-container');
+        const target = (isVideoOpen && videoContainer) ? videoContainer : document.documentElement;
+        if (target.requestFullscreen) target.requestFullscreen();
+        else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
+
+    } else if (key === 'Slash' || key === '?') {
+        const modal = document.getElementById('shortcuts-modal');
+        if (modal) modal.classList.toggle('hidden');
+    }
+}
+
+
+// Volume adjustment helper
+function adjustVolume(delta) {
+    if (!audioEngine) return;
+    const oldVolume = audioEngine.volume;
+    let newVolume = oldVolume + delta;
+    // Clamp between 0 and 1
+    newVolume = Math.max(0, Math.min(1, newVolume));
+    audioEngine.volume = newVolume;
+    // Un-mute if muted and user is raising volume
+    if (isMuted && delta > 0) {
+        isMuted = false;
+        audioEngine.muted = false;
+    }
+    if (newVolume < 0.01) {
+        isMuted = true;
+        audioEngine.muted = true;
+    }
+    if (volumeProgress) volumeProgress.style.width = `${newVolume * 100}%`;
+    updateVolumeIcon();
+    showToast(`Volume: ${Math.round(newVolume * 100)}%`);
+}
+
 function setupEventListeners() {
+    // Ensure focus for keyboard shortcuts after any UI changes
+    if (!document.body.hasAttribute('tabindex')) {
+        document.body.setAttribute('tabindex', '0');
+    }
+    document.body.focus();
     playPauseBtn.addEventListener('click', togglePlay);
     btnNext.addEventListener('click', playNextTrack);
     btnPrev.addEventListener('click', playPreviousTrack);
@@ -124,46 +306,61 @@ function setupEventListeners() {
     btnRepeat.addEventListener('click', toggleRepeat);
     btnToggleQueue.addEventListener('click', toggleQueueSidebar);
     audioEngine.addEventListener('timeupdate', () => { if (!isSeeking) updateProgress(); });
-    
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', handleKeyboardShortcuts, true);
+
     // Airtight Video-Audio Synchronization Event Listeners
     audioEngine.addEventListener('waiting', () => {
-        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
-            try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+        if (isVideoOpen && !isSeeking) {
+            if (ytPlayer) {
+                ytPlayer.pauseVideo();
+            } else if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+            }
         }
     });
     audioEngine.addEventListener('playing', () => {
-        if (isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
-            try {
-                videoIframe.contentWindow.postMessage(
-                    JSON.stringify({
-                        event: 'command',
-                        func: 'seekTo',
-                        args: [audioEngine.currentTime, true]
-                    }),
-                    '*'
-                );
-                videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            } catch(e) {}
+        if (isVideoOpen && !isSeeking) {
+            if (ytPlayer) {
+                ytPlayer.playVideo();
+            } else if (videoIframe && videoIframe.src) {
+                try {
+                    videoIframe.contentWindow.postMessage(
+                        JSON.stringify({
+                            event: 'command',
+                            func: 'seekTo',
+                            args: [audioEngine.currentTime, true]
+                        }),
+                        '*'
+                    );
+                    videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                } catch(e) {}
+            }
         }
     });
     audioEngine.addEventListener('pause', () => {
         // Suppress spurious pause events fired by audioEngine.load() during track switching
         if (isLoadingTrack || isSeeking) return;
-        if (isVideoOpen && videoIframe && videoIframe.src) {
-            try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+        if (isVideoOpen) {
+            if (ytPlayer) {
+                ytPlayer.pauseVideo();
+            } else if (videoIframe && videoIframe.src) {
+                try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
+            }
         }
     });
     audioEngine.addEventListener('ended', () => {
         if (isRepeated) playTrack(currentTrack);
         else playNextTrack();
-    }); 
+    });
     audioEngine.addEventListener('error', (e) => {
         console.warn("Audio engine encountered error. Falling back to official YouTube Player in sidebar...", e);
         const ytId = currentTrack?.youtube_id;
         if (ytId) {
             isBackupPlaying = true;
             showToast("Direct stream failed, using backup player... 🔄");
-            
+
             // Open the video sidebar so the user can see/control the video
             if (!isVideoOpen) {
                 toggleVideoSidebar();
@@ -372,15 +569,81 @@ function openVideoSidebar() {
     isVideoOpen = true;
     mainContainer.classList.add('show-video');
     videoSidebar.style.width = "400px";
-    
-    // Construct Direct ID YouTube embed with start time synced to current audio time
-    const startSec = Math.floor(audioEngine.currentTime || 0);
-    videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&mute=1&controls=0&enablejsapi=1&start=${startSec}`;
+
+    // Use YouTube IFrame API for better sync control
+    const startSec = audioEngine.currentTime || 0;
+
+    if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        // If API is ready, use it for precise control
+        ytPlayer.stopVideo();
+
+        // Create player with exact start time
+        ytPlayer.loadVideoById({
+            videoId: currentTrack.youtube_id,
+            startSeconds: startSec,
+            endSeconds: currentTrack.duration || undefined
+        });
+
+        // Wait a moment for video to load, then start sync interval
+        setTimeout(() => {
+            if (isPlaying) {
+                ytPlayer.playVideo();
+            }
+
+            // Start smooth sync interval
+            if (videoSyncInterval) clearInterval(videoSyncInterval);
+            videoSyncInterval = setInterval(() => {
+                if (!isVideoBuffering && !isSeeking && isPlaying && ytPlayer) {
+                    const audioTime = audioEngine.currentTime;
+                    const ytTime = ytPlayer.getCurrentTime() || 0;
+                    const drift = Math.abs(audioTime - ytTime);
+
+                    // Only sync if drift is more than 0.3 seconds (stricter)
+                    if (drift > 0.3) {
+                        ytPlayer.seekTo(audioTime, true);
+                        console.log(`[Sync] Corrected ${drift.toFixed(2)}s drift`);
+                    }
+                }
+            }, 250); // Check every 250ms for tighter sync
+        }, 300);
+    } else {
+        // Fallback to iframe embed with precise start time
+        videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&controls=0&enablejsapi=1&start=${startSec.toFixed(1)}`;
+
+        // Launch a sync worker to keep iframe in sync via postMessage
+        if (videoSyncInterval) clearInterval(videoSyncInterval);
+        videoSyncInterval = setInterval(() => {
+            if (isPlaying && videoIframe && videoIframe.contentWindow) {
+                try {
+                    const audioTime = audioEngine.currentTime;
+                    videoIframe.contentWindow.postMessage(
+                        JSON.stringify({
+                            event: 'command',
+                            func: 'seekTo',
+                            args: [audioTime, false]
+                        }),
+                        '*'
+                    );
+                } catch(e) {}
+            }
+        }, 500);
+    }
+
     document.getElementById('video-sidebar-title').innerText = `Watching: ${currentTrack.title}`;
+
+    // Force focus on body to ensure keyboard shortcuts work
+    document.body.focus();
 }
 
 function closeVideoSidebar() {
     isVideoOpen = false;
+
+    // Clear sync interval
+    if (videoSyncInterval) {
+        clearInterval(videoSyncInterval);
+        videoSyncInterval = null;
+    }
+
     updateLayout();
     videoSidebar.style.width = "0px";
     videoIframe.src = "";
@@ -880,9 +1143,15 @@ async function playTrack(track) {
         isPlaying = true;
         updatePlayButton();
         
-        // Sync Video if sidebar is open - mute=1 because audio comes from proxy stream
-        if (isVideoOpen) {
-            videoIframe.src = `https://www.youtube.com/embed/${data.id}?autoplay=1&mute=1&controls=0&enablejsapi=1`;
+        // Sync Video if sidebar is open - now uses API for perfect sync
+        if (isVideoOpen && currentTrack.youtube_id) {
+            if (ytPlayer) {
+                ytPlayer.stopVideo();
+                ytPlayer.seekTo(audioEngine.currentTime, true);
+                ytPlayer.playVideo();
+            } else {
+                videoIframe.src = `https://www.youtube.com/embed/${data.id}?autoplay=1&controls=0&enablejsAPI=1`;
+            }
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
         }
 
@@ -956,10 +1225,18 @@ function playPreviousTrack() {
     }
 }
 
+function restartTrack() {
+    if (!audioEngine) return;
+    audioEngine.currentTime = 0;
+    showToast('Track restarted');
+}
+
 function togglePlay() {
     if (isBackupPlaying) {
         if (isPlaying) {
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer) {
+                ytPlayer.pauseVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
             }
             isPlaying = false;
@@ -968,11 +1245,12 @@ function togglePlay() {
                 backupEndTimer = null;
             }
         } else {
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer) {
+                ytPlayer.playVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e) {}
             }
             isPlaying = true;
-            // Resume backup auto-advance timer if duration exists
             if (currentTrack && currentTrack.duration) {
                 if (backupEndTimer) clearTimeout(backupEndTimer);
                 const durationMs = currentTrack.duration * 1000;
@@ -987,12 +1265,16 @@ function togglePlay() {
         if (!audioEngine.src) return;
         if (isPlaying) {
             audioEngine.pause();
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer) {
+                ytPlayer.pauseVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
             }
         } else {
             audioEngine.play().catch(() => {});
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer) {
+                ytPlayer.playVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e) {}
             }
         }
@@ -1000,6 +1282,7 @@ function togglePlay() {
     }
     updatePlayButton();
 }
+
 
 function toggleMute() { isMuted = !isMuted; audioEngine.muted = isMuted; updateVolumeIcon(); }
 
@@ -1036,26 +1319,34 @@ function updateProgress() {
             prefetchNextTrack();
         }
 
-        // Periodically sync video timeline to audio timeline (every 2 seconds) to prevent drift
-        const sec = Math.floor(audioEngine.currentTime);
-        if (sec > 0 && sec % 2 === 0 && sec !== lastSyncedSecond && isVideoOpen && videoIframe && videoIframe.src && !isSeeking) {
-            lastSyncedSecond = sec;
+        // Periodically sync video timeline to audio timeline (more aggressive sync)
+        const audioTime = audioEngine.currentTime;
+        if (audioTime > 0 && isVideoOpen && !isSeeking && (Math.floor(audioTime) !== lastSyncedSecond || lastSyncedSecond === -1)) {
+            lastSyncedSecond = Math.floor(audioTime);
             try {
-                videoIframe.contentWindow.postMessage(
-                    JSON.stringify({
-                        event: 'command',
-                        func: 'seekTo',
-                        args: [audioEngine.currentTime, false]
-                    }),
-                    '*'
-                );
-                // Periodically ensure the play/pause state matches
-                if (isPlaying) {
-                    videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-                } else {
-                    videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                    // Use YouTube API for precise sync
+                    const ytTime = ytPlayer.getCurrentTime() || 0;
+                    const drift = Math.abs(audioTime - ytTime);
+                    // Sync when drift exceeds 0.2 seconds (very tight sync)
+                    if (drift > 0.2) {
+                        ytPlayer.seekTo(audioTime, true);
+                        console.log(`[Periodic Sync] Fixed ${drift.toFixed(2)}s drift`);
+                    }
+                } else if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
+                    // Fallback to iframe postMessage - sync every second for iframe
+                    videoIframe.contentWindow.postMessage(
+                        JSON.stringify({
+                            event: 'command',
+                            func: 'seekTo',
+                            args: [audioTime, false]
+                        }),
+                        '*'
+                    );
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.warn('[Sync warning]', e);
+            }
         }
     }
 }
@@ -1116,10 +1407,22 @@ function formatTime(seconds) {
 }
 
 function syncVideoIframeToAudio() {
-    if (videoIframe && videoIframe.src && currentTrack) {
-        const seconds = audioEngine.currentTime || 0;
-        console.log("[Seek Sync] Syncing video timeline to:", seconds);
-        try {
+    if (!currentTrack) return;
+
+    const seconds = audioEngine.currentTime || 0;
+    console.log("[Seek Sync] Syncing video timeline to:", seconds);
+
+    try {
+        if (ytPlayer) {
+            // Use YouTube API for precise seeking
+            ytPlayer.seekTo(seconds, true);
+            if (isPlaying) {
+                ytPlayer.playVideo();
+            } else {
+                ytPlayer.pauseVideo();
+            }
+        } else if (videoIframe && videoIframe.src) {
+            // Fallback to iframe postMessage
             videoIframe.contentWindow.postMessage(
                 JSON.stringify({
                     event: 'command',
@@ -1128,15 +1431,14 @@ function syncVideoIframeToAudio() {
                 }),
                 '*'
             );
-            // Ensure play/pause state is synchronized
             if (isPlaying) {
                 videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
             } else {
                 videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
             }
-        } catch(err) {
-            console.warn("Failed to post commands to video iframe:", err);
         }
+    } catch(err) {
+        console.warn("Failed to sync video to audio:", err);
     }
 }
 

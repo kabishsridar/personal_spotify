@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Spotify Web 🎧</title>
+    <style>
+        /* Prevent default keyboard behaviors */
+        html, body {
+            overflow: hidden;
+        }
+        /* Prevent spacebar scrolling */
+        *:focus {
+            outline: none;
+        }
+    </style>
     <link rel="stylesheet" href="style.css?v=2.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -154,9 +164,61 @@
         #btn-save-ip:hover { transform: scale(1.05); }
         #btn-close-modal { background: transparent; color: white; }
         #btn-close-modal:hover { color: #b3b3b3; }
+
+        /* Keyboard Shortcuts Help Modal */
+        #shortcuts-modal .modal-content {
+            max-width: 480px;
+            text-align: left;
+        }
+        #shortcuts-modal h3 { text-align: center; margin-bottom: 16px; font-size: 18px; }
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 24px;
+            margin-bottom: 20px;
+        }
+        .shortcut-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #333; }
+        .shortcut-key {
+            background: #404040;
+            color: #fff;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 9px;
+            border-radius: 5px;
+            min-width: 50px;
+            text-align: center;
+            flex-shrink: 0;
+            letter-spacing: 0.5px;
+        }
+        .shortcut-desc { color: #b3b3b3; font-size: 13px; }
     </style>
 </head>
 <body>
+    <!-- Keyboard Shortcuts Help Modal -->
+    <div class="modal hidden" id="shortcuts-modal">
+        <div class="modal-content">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div class="shortcut-grid">
+                <div class="shortcut-row"><span class="shortcut-key">Space</span><span class="shortcut-desc">Play / Pause</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">N</span><span class="shortcut-desc">Next track</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">P</span><span class="shortcut-desc">Previous track</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">R</span><span class="shortcut-desc">Restart track</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">← →</span><span class="shortcut-desc">Seek ±10 seconds</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">↑ ↓</span><span class="shortcut-desc">Volume ±10%</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">M</span><span class="shortcut-desc">Mute / Unmute</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">S</span><span class="shortcut-desc">Toggle Shuffle</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">L</span><span class="shortcut-desc">Toggle Loop/Repeat</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">V</span><span class="shortcut-desc">Toggle Video panel</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">Q</span><span class="shortcut-desc">Toggle Queue</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">F</span><span class="shortcut-desc">Fullscreen video</span></div>
+                <div class="shortcut-row"><span class="shortcut-key">?</span><span class="shortcut-desc">Show this help</span></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-buttons" onclick="document.getElementById('shortcuts-modal').classList.add('hidden')" style="padding:10px 30px;border-radius:50px;border:none;background:#1db954;color:white;font-weight:700;cursor:pointer;">Close</button>
+            </div>
+        </div>
+    </div>
     <div class="app-container" id="main-container">
         <!-- Sidebar -->
         <aside class="sidebar">
