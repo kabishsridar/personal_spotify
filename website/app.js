@@ -130,34 +130,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // YouTube IFrame API initialization
 function initializeYouTubeAPI() {
-    // Load YouTube IFrame API
+    // Load YouTube IFrame API script
+    if (document.getElementById('yt-iframe-api')) return; // prevent double-load
     const tag = document.createElement('script');
+    tag.id = 'yt-iframe-api';
     tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    document.head.appendChild(tag);
 
-    // API will call this function when ready
+    // Called automatically by YouTube when API is ready
     window.onYouTubeIframeAPIReady = function() {
-        console.log("YouTube IFrame API ready for synchronization");
-    };
-
-    // Listen to YouTube player state changes
-    window.onYouTubeStateChange = function(event) {
-        const state = event.data;
-        switch(state) {
-            case 1: // Playing
-                isVideoBuffering = false;
-                break;
-            case 2: // Paused
-                isVideoBuffering = false;
-                break;
-            case 3: // Buffering
-                isVideoBuffering = true;
-                break;
-            case 5: // Cued
-                isVideoBuffering = false;
-                break;
+        console.log("[YT] IFrame API ready — creating player");
+        // Create a hidden player div if it doesn't exist
+        if (!document.getElementById('yt-player-div')) {
+            const div = document.createElement('div');
+            div.id = 'yt-player-div';
+            div.style.display = 'none';
+            document.body.appendChild(div);
         }
+        ytPlayer = new YT.Player('yt-player-div', {
+            height: '100%',
+            width: '100%',
+            playerVars: {
+                autoplay: 0,
+                controls: 0,
+                mute: 1,       // Always muted — audio comes from the proxy stream
+                enablejsapi: 1,
+                origin: window.location.origin,
+                rel: 0
+            },
+            events: {
+                onReady: (event) => {
+                    console.log('[YT] Player ready');
+                },
+                onStateChange: (event) => {
+                    const state = event.data;
+                    if (state === YT.PlayerState.BUFFERING) {
+                        isVideoBuffering = true;
+                    } else if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED) {
+                        isVideoBuffering = false;
+                    }
+                },
+                onError: (event) => {
+                    console.warn('[YT] Player error:', event.data);
+                    // Fall back to direct iframe embed on API error
+                    ytPlayer = null;
+                }
+            }
+        });
     };
 }
 
@@ -570,68 +589,82 @@ function openVideoSidebar() {
     mainContainer.classList.add('show-video');
     videoSidebar.style.width = "400px";
 
-    // Use YouTube IFrame API for better sync control
-    const startSec = audioEngine.currentTime || 0;
+    const startSec = Math.floor(audioEngine.currentTime || 0);
+    const ytId = currentTrack.youtube_id;
 
     if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-        // If API is ready, use it for precise control
-        ytPlayer.stopVideo();
+        // === YT API PATH: attach player iframe to sidebar ===
+        // Move the YT player's iframe into the video-container
+        const videoContainer = document.querySelector('.video-container');
+        if (videoContainer && ytPlayer.getIframe) {
+            const iframe = ytPlayer.getIframe();
+            iframe.style.display = 'block';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.position = 'absolute';
+            iframe.style.top = '0';
+            iframe.style.left = '0';
+            videoContainer.appendChild(iframe);
+        }
+        videoIframe.style.display = 'none'; // hide fallback iframe
 
-        // Create player with exact start time
-        ytPlayer.loadVideoById({
-            videoId: currentTrack.youtube_id,
-            startSeconds: startSec,
-            endSeconds: currentTrack.duration || undefined
-        });
+        ytPlayer.loadVideoById({ videoId: ytId, startSeconds: startSec });
+        if (isPlaying) {
+            setTimeout(() => ytPlayer.playVideo(), 500);
+        } else {
+            setTimeout(() => ytPlayer.pauseVideo(), 500);
+        }
 
-        // Wait a moment for video to load, then start sync interval
-        setTimeout(() => {
-            if (isPlaying) {
-                ytPlayer.playVideo();
-            }
-
-            // Start smooth sync interval
-            if (videoSyncInterval) clearInterval(videoSyncInterval);
-            videoSyncInterval = setInterval(() => {
-                if (!isVideoBuffering && !isSeeking && isPlaying && ytPlayer) {
-                    const audioTime = audioEngine.currentTime;
-                    const ytTime = ytPlayer.getCurrentTime() || 0;
-                    const drift = Math.abs(audioTime - ytTime);
-
-                    // Only sync if drift is more than 0.3 seconds (stricter)
-                    if (drift > 0.3) {
-                        ytPlayer.seekTo(audioTime, true);
-                        console.log(`[Sync] Corrected ${drift.toFixed(2)}s drift`);
-                    }
-                }
-            }, 250); // Check every 250ms for tighter sync
-        }, 300);
     } else {
-        // Fallback to iframe embed with precise start time
-        videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&controls=0&enablejsapi=1&start=${startSec.toFixed(1)}`;
-
-        // Launch a sync worker to keep iframe in sync via postMessage
-        if (videoSyncInterval) clearInterval(videoSyncInterval);
-        videoSyncInterval = setInterval(() => {
-            if (isPlaying && videoIframe && videoIframe.contentWindow) {
-                try {
-                    const audioTime = audioEngine.currentTime;
-                    videoIframe.contentWindow.postMessage(
-                        JSON.stringify({
-                            event: 'command',
-                            func: 'seekTo',
-                            args: [audioTime, false]
-                        }),
-                        '*'
-                    );
-                } catch(e) {}
-            }
-        }, 500);
+        // === FALLBACK PATH: direct iframe embed ===
+        videoIframe.style.display = 'block';
+        // mute=1 because audio comes from our proxy stream (prevent double audio)
+        videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&enablejsapi=1&start=${startSec}&origin=${encodeURIComponent(window.location.origin)}`;
     }
 
-    document.getElementById('video-sidebar-title').innerText = `Watching: ${currentTrack.title}`;
+    // === DRIFT-BASED SYNC INTERVAL ===
+    // Only correct when drift exceeds threshold — never spam seekTo
+    if (videoSyncInterval) clearInterval(videoSyncInterval);
+    videoSyncInterval = setInterval(() => {
+        if (!isVideoOpen || !isPlaying || isSeeking || isBackupPlaying) return;
 
-    // Force focus on body to ensure keyboard shortcuts work
+        const audioTime = audioEngine.currentTime;
+        if (isNaN(audioTime) || audioTime === 0) return;
+
+        if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+            // === YT API SYNC ===
+            const ytTime = ytPlayer.getCurrentTime() || 0;
+            const drift = audioTime - ytTime;
+
+            if (Math.abs(drift) > 2.0) {
+                // Hard re-sync: more than 2 seconds off
+                console.log(`[Sync] Hard re-sync: drift=${drift.toFixed(2)}s`);
+                ytPlayer.seekTo(audioTime, true);
+            } else if (Math.abs(drift) > 0.5 && !isVideoBuffering) {
+                // Soft nudge: 0.5–2s drift
+                console.log(`[Sync] Soft nudge: drift=${drift.toFixed(2)}s`);
+                ytPlayer.seekTo(audioTime, false);
+            }
+            // < 0.5s drift: do nothing — let video play naturally
+        } else if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
+            // === IFRAME postMessage SYNC (fallback) ===
+            // We cannot read iframe currentTime, so do a gentle periodic re-sync
+            // only once every 10 seconds to avoid spamming seekTo
+            const nowSec = Math.floor(audioTime);
+            if (nowSec !== lastSyncedSecond && nowSec % 10 === 0) {
+                lastSyncedSecond = nowSec;
+                try {
+                    videoIframe.contentWindow.postMessage(
+                        JSON.stringify({ event: 'command', func: 'seekTo', args: [audioTime, true] }),
+                        '*'
+                    );
+                    console.log(`[Sync] iframe re-sync at ${audioTime.toFixed(1)}s`);
+                } catch(e) {}
+            }
+        }
+    }, 1000); // Check every 1 second (not 250ms — less CPU, no stutter)
+
+    document.getElementById('video-sidebar-title').innerText = `Watching: ${currentTrack.title}`;
     document.body.focus();
 }
 
@@ -1143,16 +1176,16 @@ async function playTrack(track) {
         isPlaying = true;
         updatePlayButton();
         
-        // Sync Video if sidebar is open - now uses API for perfect sync
+        // Sync Video if sidebar is open
         if (isVideoOpen && currentTrack.youtube_id) {
-            if (ytPlayer) {
-                ytPlayer.stopVideo();
-                ytPlayer.seekTo(audioEngine.currentTime, true);
-                ytPlayer.playVideo();
-            } else {
-                videoIframe.src = `https://www.youtube.com/embed/${data.id}?autoplay=1&controls=0&enablejsAPI=1`;
-            }
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
+            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                ytPlayer.loadVideoById({ videoId: currentTrack.youtube_id, startSeconds: 0 });
+                // Give YouTube 600ms to buffer before playing
+                setTimeout(() => { if (isPlaying && isVideoOpen) ytPlayer.playVideo(); }, 600);
+            } else if (videoIframe) {
+                videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&mute=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+            }
         }
 
         renderQueue();
