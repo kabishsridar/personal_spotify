@@ -388,6 +388,11 @@ function setupEventListeners() {
         else playNextTrack();
     });
     audioEngine.addEventListener('error', (e) => {
+        // Skip errors during track loading/transition, or aborted play calls
+        if (isLoadingTrack || (audioEngine.error && audioEngine.error.code === 1)) {
+            console.log("[Audio] Ignored transition/aborted error event.");
+            return;
+        }
         console.warn("Audio engine encountered error. Falling back to official YouTube Player in sidebar...", e);
         const ytId = currentTrack?.youtube_id;
         if (ytId) {
@@ -1192,6 +1197,7 @@ async function fetchAutoplayRecommendations(track) {
 }
 
 async function playTrack(track) {
+    isLoadingTrack = true; // Protect transition from spurious error events
     // Stop any active playback immediately & reset media pipeline to prevent DOMException interruptions
     audioEngine.pause();
     audioEngine.src = "";
@@ -1212,24 +1218,28 @@ async function playTrack(track) {
     fetchAutoplayRecommendations(track);
 
     let data = null;
-    if (prefetchedStreamCache.has(track.id)) {
-        data = prefetchedStreamCache.get(track.id);
-        prefetchedStreamCache.delete(track.id);
-        console.log("[Cache HIT] Using prefetched stream for:", track.title);
-    } else {
-        data = await resolveStreamUrl(track);
+    try {
+        if (prefetchedStreamCache.has(track.id)) {
+            data = prefetchedStreamCache.get(track.id);
+            prefetchedStreamCache.delete(track.id);
+            console.log("[Cache HIT] Using prefetched stream for:", track.title);
+        } else {
+            data = await resolveStreamUrl(track);
+        }
+    } catch(err) {
+        console.warn("Failed to resolve stream url:", err);
     }
 
     if (data && data.url && currentTrack && currentTrack.id === track.id) {
         currentTrack.youtube_id = data.id; // Store ID for video
-        isLoadingTrack = true; // Suppress pause event from audioEngine.load()
         audioEngine.src = `${API_BASE_URL}/api/proxy?url=${encodeURIComponent(data.url)}`;
         audioEngine.load(); // Clean reset & load new source
-        isLoadingTrack = false;
         audioEngine.play().then(() => {
             console.log("Playback started successfully.");
+            isLoadingTrack = false; // Done loading
         }).catch(err => {
             console.warn("Playback play() failed to start:", err);
+            isLoadingTrack = false; // Done loading
         });
         isPlaying = true;
         updatePlayButton();
@@ -1256,6 +1266,8 @@ async function playTrack(track) {
         }
 
         renderQueue();
+    } else {
+        isLoadingTrack = false; // Clear on early exit
     }
 }
 
