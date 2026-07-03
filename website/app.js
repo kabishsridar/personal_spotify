@@ -161,9 +161,19 @@ function initializeYouTubeAPI() {
             events: {
                 onReady: (event) => {
                     console.log('[YT] Player ready');
+                    // Enforce mute on ready — belt + suspenders
+                    event.target.mute();
                 },
                 onStateChange: (event) => {
                     const state = event.data;
+                    // ALWAYS re-enforce mute on every state change
+                    // loadVideoById can silently reset mute state
+                    if (event.target && typeof event.target.isMuted === 'function') {
+                        if (!event.target.isMuted()) {
+                            event.target.mute();
+                            console.log('[YT] Re-muted after state change (was unmuted)');
+                        }
+                    }
                     if (state === YT.PlayerState.BUFFERING) {
                         isVideoBuffering = true;
                     } else if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED) {
@@ -340,8 +350,9 @@ function setupEventListeners() {
         }
     });
     audioEngine.addEventListener('playing', () => {
-        if (isVideoOpen && !isSeeking) {
+        if (isVideoOpen && !isSeeking && !isBackupPlaying) {
             if (ytPlayer) {
+                ytPlayer.mute(); // Always re-enforce mute before play
                 ytPlayer.playVideo();
             } else if (videoIframe && videoIframe.src) {
                 try {
@@ -382,9 +393,28 @@ function setupEventListeners() {
 
             // Open the video sidebar so the user can see/control the video
             if (!isVideoOpen) {
-                toggleVideoSidebar();
+                isVideoOpen = true;
+                mainContainer.classList.add('show-video');
+                videoSidebar.style.width = '400px';
             }
-            videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=0&controls=0&enablejsapi=1`;
+
+            // BACKUP MODE: the iframe IS the audio source here (proxy failed).
+            // mute=0 so the user can actually hear the song.
+            // But we must silence the audioEngine first (it's broken anyway).
+            audioEngine.pause();
+            audioEngine.src = '';
+
+            videoIframe.style.display = 'block';
+            // mute=0 intentional here — this is the ONLY audio source in backup mode
+            videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=0&controls=1&enablejsapi=1`;
+
+            // If ytPlayer was attached, stop it to avoid double audio from ytPlayer too
+            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+                ytPlayer.mute();
+                ytPlayer.stopVideo();
+            }
+
+            document.getElementById('video-sidebar-title').innerText = `Watching: ${currentTrack.title}`;
             isPlaying = true;
             updatePlayButton();
 
@@ -594,7 +624,6 @@ function openVideoSidebar() {
 
     if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
         // === YT API PATH: attach player iframe to sidebar ===
-        // Move the YT player's iframe into the video-container
         const videoContainer = document.querySelector('.video-container');
         if (videoContainer && ytPlayer.getIframe) {
             const iframe = ytPlayer.getIframe();
@@ -607,13 +636,20 @@ function openVideoSidebar() {
             videoContainer.appendChild(iframe);
         }
         videoIframe.style.display = 'none'; // hide fallback iframe
+        videoIframe.src = '';              // clear src so it can't play audio
 
+        // CRITICAL: mute BEFORE loading to prevent any audio flash
+        ytPlayer.mute();
         ytPlayer.loadVideoById({ videoId: ytId, startSeconds: startSec });
-        if (isPlaying) {
-            setTimeout(() => ytPlayer.playVideo(), 500);
-        } else {
-            setTimeout(() => ytPlayer.pauseVideo(), 500);
-        }
+        setTimeout(() => {
+            ytPlayer.mute(); // Re-enforce mute after load (loadVideoById can reset it)
+            if (isPlaying) {
+                ytPlayer.playVideo();
+                ytPlayer.mute(); // mute again after play (triple insurance)
+            } else {
+                ytPlayer.pauseVideo();
+            }
+        }, 500);
 
     } else {
         // === FALLBACK PATH: direct iframe embed ===
@@ -633,6 +669,11 @@ function openVideoSidebar() {
 
         if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
             // === YT API SYNC ===
+            // Always enforce mute — loadVideoById/seekTo can silently unmute
+            if (typeof ytPlayer.isMuted === 'function' && !ytPlayer.isMuted()) {
+                ytPlayer.mute();
+            }
+
             const ytTime = ytPlayer.getCurrentTime() || 0;
             const drift = audioTime - ytTime;
 
@@ -640,6 +681,7 @@ function openVideoSidebar() {
                 // Hard re-sync: more than 2 seconds off
                 console.log(`[Sync] Hard re-sync: drift=${drift.toFixed(2)}s`);
                 ytPlayer.seekTo(audioTime, true);
+                ytPlayer.mute(); // re-mute after seek
             } else if (Math.abs(drift) > 0.5 && !isVideoBuffering) {
                 // Soft nudge: 0.5–2s drift
                 console.log(`[Sync] Soft nudge: drift=${drift.toFixed(2)}s`);
@@ -677,9 +719,18 @@ function closeVideoSidebar() {
         videoSyncInterval = null;
     }
 
+    // Stop ytPlayer (keeps it muted & paused, ready for next open)
+    if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+        ytPlayer.mute();
+        ytPlayer.stopVideo();
+    }
+
+    // Clear fallback iframe src so it stops ALL audio/video
+    videoIframe.src = '';
+    videoIframe.style.display = 'none';
+
     updateLayout();
     videoSidebar.style.width = "0px";
-    videoIframe.src = "";
 }
 
 // --- Queue Sidebar Logic ---
