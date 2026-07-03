@@ -179,6 +179,16 @@ function initializeYouTubeAPI() {
                     } else if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED) {
                         isVideoBuffering = false;
                     }
+
+                    // Toggle loader dots
+                    const loader = document.getElementById('video-loader');
+                    if (loader) {
+                        if (state === YT.PlayerState.BUFFERING || state === YT.PlayerState.UNSTARTED) {
+                            if (isVideoOpen) loader.classList.remove('hidden');
+                        } else {
+                            loader.classList.add('hidden');
+                        }
+                    }
                 },
                 onError: (event) => {
                     console.warn('[YT] Player error:', event.data);
@@ -622,6 +632,10 @@ function openVideoSidebar() {
     const startSec = Math.floor(audioEngine.currentTime || 0);
     const ytId = currentTrack.youtube_id;
 
+    // Show loading dots immediately
+    const loader = document.getElementById('video-loader');
+    if (loader) loader.classList.remove('hidden');
+
     if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
         // === YT API PATH: attach player iframe to sidebar ===
         const videoContainer = document.querySelector('.video-container');
@@ -656,6 +670,10 @@ function openVideoSidebar() {
         videoIframe.style.display = 'block';
         // mute=1 because audio comes from our proxy stream (prevent double audio)
         videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&enablejsapi=1&start=${startSec}&origin=${encodeURIComponent(window.location.origin)}`;
+        
+        videoIframe.onload = () => {
+            if (loader) loader.classList.add('hidden');
+        };
     }
 
     // === DRIFT-BASED SYNC INTERVAL ===
@@ -728,6 +746,10 @@ function closeVideoSidebar() {
     // Clear fallback iframe src so it stops ALL audio/video
     videoIframe.src = '';
     videoIframe.style.display = 'none';
+
+    // Hide loader
+    const loader = document.getElementById('video-loader');
+    if (loader) loader.classList.add('hidden');
 
     updateLayout();
     videoSidebar.style.width = "0px";
@@ -1229,6 +1251,9 @@ async function playTrack(track) {
         
         // Sync Video if sidebar is open
         if (isVideoOpen && currentTrack.youtube_id) {
+            const loader = document.getElementById('video-loader');
+            if (loader) loader.classList.remove('hidden');
+
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById({ videoId: currentTrack.youtube_id, startSeconds: 0 });
@@ -1236,6 +1261,9 @@ async function playTrack(track) {
                 setTimeout(() => { if (isPlaying && isVideoOpen) ytPlayer.playVideo(); }, 600);
             } else if (videoIframe) {
                 videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&mute=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+                videoIframe.onload = () => {
+                    if (loader) loader.classList.add('hidden');
+                };
             }
         }
 
