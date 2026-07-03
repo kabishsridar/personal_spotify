@@ -321,6 +321,11 @@ function setupEventListeners() {
     audioEngine.addEventListener('pause', () => {
         // Suppress spurious pause events fired by audioEngine.load() during track switching
         if (isLoadingTrack || isSeeking) return;
+        // ONLY pause the video if the user actually clicked pause (isPlaying is false)
+        if (isPlaying) {
+            console.log("[Audio] Ignored spurious pause event (still in playing state).");
+            return;
+        }
         if (isVideoOpen) {
             if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
