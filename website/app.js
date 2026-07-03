@@ -301,13 +301,6 @@ function setupEventListeners() {
     window.addEventListener('keydown', handleKeyboardShortcuts, true);
 
     // Airtight Video-Audio Synchronization Event Listeners
-    audioEngine.addEventListener('waiting', () => {
-        if (isVideoOpen && !isSeeking) {
-            if (videoIframe && videoIframe.src) {
-                try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
-            }
-        }
-    });
     audioEngine.addEventListener('playing', () => {
         if (isVideoOpen && !isSeeking && !isBackupPlaying) {
             if (videoIframe && videoIframe.src) {
