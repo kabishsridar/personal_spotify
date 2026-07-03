@@ -634,6 +634,12 @@ function openVideoSidebar() {
     mainContainer.classList.add('show-video');
     videoSidebar.style.width = "400px";
 
+    // Set video placeholder art
+    const placeholderArt = document.getElementById('video-placeholder-art');
+    if (placeholderArt && currentTrack) {
+        placeholderArt.src = currentTrack.album_art || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400&auto=format&fit=crop';
+    }
+
     const startSec = Math.floor(audioEngine.currentTime || 0);
     const ytId = currentTrack.youtube_id;
 
@@ -731,6 +737,7 @@ function openVideoSidebar() {
 
     document.getElementById('video-sidebar-title').innerText = `Watching: ${currentTrack.title}`;
     document.body.focus();
+    updateVideoVisibility();
 }
 
 function closeVideoSidebar() {
@@ -760,6 +767,7 @@ function closeVideoSidebar() {
 
     updateLayout();
     videoSidebar.style.width = "0px";
+    updateVideoVisibility();
 }
 
 // --- Queue Sidebar Logic ---
@@ -1229,6 +1237,13 @@ async function playTrack(track) {
     playerTitle.innerText = track.title;
     playerArtist.innerText = track.artist;
     playerThumb.src = track.album_art || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=100&auto=format&fit=crop';
+    
+    // Set video placeholder art
+    const placeholderArt = document.getElementById('video-placeholder-art');
+    if (placeholderArt) {
+        placeholderArt.src = track.album_art || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400&auto=format&fit=crop';
+    }
+    
     btnAddCurrent.style.display = 'block';
 
     hasPrefetchedNext = false; // Reset smart prefetch trigger
@@ -1443,6 +1458,7 @@ function updateVolumeIcon() {
 
 function updatePlayButton() {
     playPauseBtn.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+    updateVideoVisibility();
 }
 
 function updateProgress() {
@@ -1540,6 +1556,15 @@ function syncVideoIframeToAudio() {
     } catch(err) {
         console.warn("Failed to sync video to audio:", err);
     }
+}
+
+function updateVideoVisibility() {
+    const ytDiv = document.getElementById('yt-player-div');
+    const iframe = document.getElementById('video-iframe');
+    const isVideoActive = isVideoOpen && isPlaying && !isSeeking;
+    
+    if (ytDiv) ytDiv.style.opacity = isVideoActive ? '1' : '0';
+    if (iframe) iframe.style.opacity = isVideoActive ? '1' : '0';
 }
 
 // Final Cleanup: Duplicate definitions removed.
