@@ -98,6 +98,9 @@
             overflow: hidden;
             border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            /* Force hardware acceleration and correct overflow clipping in WebKit/Chrome */
+            transform: translateZ(0);
+            -webkit-mask-image: -webkit-radial-gradient(white, black);
         }
         .video-container iframe, .video-container #yt-player-div {
             width: 100%;
@@ -106,7 +109,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            transform: scale(1.35);
+            transform: scale(1.45);
             transform-origin: center;
             opacity: 0;
             z-index: 2;
