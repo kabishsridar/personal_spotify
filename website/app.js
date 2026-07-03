@@ -239,7 +239,7 @@ function handleKeyboardShortcuts(e) {
         } else if (isBackupPlaying) {
             // For backup YouTube player, seek via postMessage
             if (videoIframe && videoIframe.src) {
-                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.max(0, (ytPlayer ? ytPlayer.getCurrentTime() : 0) - 10), true] }), '*'); } catch(e) {}
+                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.max(0, (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0) - 10), true] }), '*'); } catch(e) {}
             }
             showToast('⏪ -10s');
         }
@@ -251,7 +251,7 @@ function handleKeyboardShortcuts(e) {
             if (isVideoOpen) syncVideoIframeToAudio();
         } else if (isBackupPlaying) {
             if (videoIframe && videoIframe.src) {
-                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [(ytPlayer ? ytPlayer.getCurrentTime() : 0) + 10, true] }), '*'); } catch(e) {}
+                try { videoIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [(ytPlayer && typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0) + 10, true] }), '*'); } catch(e) {}
             }
             showToast('⏩ +10s');
         }
@@ -1388,7 +1388,7 @@ function restartTrack() {
 function togglePlay() {
     if (isBackupPlaying) {
         if (isPlaying) {
-            if (ytPlayer) {
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
                 ytPlayer.pauseVideo();
             } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
@@ -1399,7 +1399,7 @@ function togglePlay() {
                 backupEndTimer = null;
             }
         } else {
-            if (ytPlayer) {
+            if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
                 ytPlayer.playVideo();
             } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e) {}
@@ -1419,14 +1419,14 @@ function togglePlay() {
         if (!audioEngine.src) return;
         if (isPlaying) {
             audioEngine.pause();
-            if (ytPlayer) {
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
                 ytPlayer.pauseVideo();
             } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
             }
         } else {
             audioEngine.play().catch(() => {});
-            if (ytPlayer) {
+            if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
                 ytPlayer.playVideo();
             } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e) {}
