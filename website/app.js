@@ -559,6 +559,15 @@ function openVideoSidebar() {
     
     videoIframe.onload = () => {
         if (loader) loader.classList.add('hidden');
+        if (isPlaying) {
+            try {
+                videoIframe.contentWindow.postMessage(
+                    JSON.stringify({ event: 'command', func: 'seekTo', args: [audioEngine.currentTime || 0, true] }),
+                    '*'
+                );
+                videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            } catch(e) {}
+        }
     };
 
     // === DRIFT-BASED SYNC INTERVAL ===
@@ -1116,17 +1125,20 @@ async function playTrack(track) {
             if (loader) loader.classList.remove('hidden');
 
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
-            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                const iframe = ytPlayer.getIframe();
-                if (iframe) iframe.style.display = 'block';
-                videoIframe.style.display = 'none';
-                ytPlayer.loadVideoById({ videoId: currentTrack.youtube_id, startSeconds: 0 });
-                // Give YouTube 600ms to buffer before playing
-                setTimeout(() => { if (isPlaying && isVideoOpen) ytPlayer.playVideo(); }, 600);
-            } else if (videoIframe) {
+            if (videoIframe) {
+                videoIframe.style.display = 'block';
                 videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&mute=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
                 videoIframe.onload = () => {
                     if (loader) loader.classList.add('hidden');
+                    if (isPlaying) {
+                        try {
+                            videoIframe.contentWindow.postMessage(
+                                JSON.stringify({ event: 'command', func: 'seekTo', args: [audioEngine.currentTime || 0, true] }),
+                                '*'
+                            );
+                            videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                        } catch(e) {}
+                    }
                 };
             }
         }
