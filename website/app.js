@@ -140,13 +140,6 @@ function initializeYouTubeAPI() {
     // Called automatically by YouTube when API is ready
     window.onYouTubeIframeAPIReady = function() {
         console.log("[YT] IFrame API ready — creating player");
-        // Create a hidden player div if it doesn't exist
-        if (!document.getElementById('yt-player-div')) {
-            const div = document.createElement('div');
-            div.id = 'yt-player-div';
-            div.style.display = 'none';
-            document.body.appendChild(div);
-        }
         ytPlayer = new YT.Player('yt-player-div', {
             height: '100%',
             width: '100%',
@@ -637,17 +630,9 @@ function openVideoSidebar() {
     if (loader) loader.classList.remove('hidden');
 
     if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-        // === YT API PATH: attach player iframe to sidebar ===
-        const videoContainer = document.querySelector('.video-container');
-        if (videoContainer && ytPlayer.getIframe) {
-            const iframe = ytPlayer.getIframe();
+        const iframe = ytPlayer.getIframe();
+        if (iframe) {
             iframe.style.display = 'block';
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.position = 'absolute';
-            iframe.style.top = '0';
-            iframe.style.left = '0';
-            videoContainer.appendChild(iframe);
         }
         videoIframe.style.display = 'none'; // hide fallback iframe
         videoIframe.src = '';              // clear src so it can't play audio
@@ -1256,6 +1241,9 @@ async function playTrack(track) {
 
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                const iframe = ytPlayer.getIframe();
+                if (iframe) iframe.style.display = 'block';
+                videoIframe.style.display = 'none';
                 ytPlayer.loadVideoById({ videoId: currentTrack.youtube_id, startSeconds: 0 });
                 // Give YouTube 600ms to buffer before playing
                 setTimeout(() => { if (isPlaying && isVideoOpen) ytPlayer.playVideo(); }, 600);
