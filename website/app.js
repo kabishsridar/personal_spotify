@@ -27,6 +27,7 @@ let hasMoreSearchSongs = true;
 let ytPlayer = null; // YouTube IFrame API player instance
 let videoSyncInterval = null; // Interval for smooth video-audio sync
 let isVideoBuffering = false; // Track video buffer state
+let ytVideoCurrentTime = 0; // Track current time of standard YouTube iframe embed
 
 function withTimeout(promise, ms) {
     return new Promise((resolve, reject) => {
@@ -270,6 +271,31 @@ function setupEventListeners() {
     btnRepeat.addEventListener('click', toggleRepeat);
     btnToggleQueue.addEventListener('click', toggleQueueSidebar);
     audioEngine.addEventListener('timeupdate', () => { if (!isSeeking) updateProgress(); });
+
+    // YouTube PostMessage Listener to track video current time
+    window.addEventListener('message', (e) => {
+        if (e.origin && e.origin.includes('youtube.com')) {
+            try {
+                const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                if (data && data.event === 'infoDelivery' && data.info) {
+                    if (data.info.currentTime !== undefined) {
+                        ytVideoCurrentTime = data.info.currentTime;
+                    }
+                    if (data.info.playerState !== undefined) {
+                        const state = data.info.playerState;
+                        const loader = document.getElementById('video-loader');
+                        if (state === 3) { // BUFFERING
+                            isVideoBuffering = true;
+                            if (loader && isVideoOpen) loader.classList.remove('hidden');
+                        } else {
+                            isVideoBuffering = false;
+                            if (loader) loader.classList.add('hidden');
+                        }
+                    }
+                }
+            } catch (err) {}
+        }
+    });
 
     // Keyboard Shortcuts
     window.addEventListener('keydown', handleKeyboardShortcuts, true);
@@ -571,7 +597,7 @@ function openVideoSidebar() {
     };
 
     // === DRIFT-BASED SYNC INTERVAL ===
-    // Sync the video timeline periodically every 5 seconds to match the audio time
+    // Sync the video timeline only if it drifts away from the audio timeline (prevents stuttering)
     if (videoSyncInterval) clearInterval(videoSyncInterval);
     videoSyncInterval = setInterval(() => {
         if (!isVideoOpen || !isPlaying || isSeeking || isBackupPlaying) return;
@@ -580,16 +606,18 @@ function openVideoSidebar() {
         if (isNaN(audioTime) || audioTime === 0) return;
 
         if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
-            const nowSec = Math.floor(audioTime);
-            if (nowSec !== lastSyncedSecond && nowSec % 5 === 0) {
-                lastSyncedSecond = nowSec;
+            // Check discrepancy between audio time and YouTube time
+            const drift = Math.abs(audioTime - ytVideoCurrentTime);
+            if (drift > 1.8) {
+                console.log(`[Sync] Correcting drift of ${drift.toFixed(2)}s. Seeking video to ${audioTime.toFixed(1)}s.`);
                 try {
                     videoIframe.contentWindow.postMessage(
                         JSON.stringify({ event: 'command', func: 'seekTo', args: [audioTime, true] }),
                         '*'
                     );
                     videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-                    console.log(`[Sync] iframe re-sync at ${audioTime.toFixed(1)}s`);
+                    // Prevent immediate repeat seeks
+                    ytVideoCurrentTime = audioTime;
                 } catch(e) {}
             }
         }
