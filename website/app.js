@@ -1561,7 +1561,7 @@ function syncVideoIframeToAudio() {
 function updateVideoVisibility() {
     const ytDiv = document.getElementById('yt-player-div');
     const iframe = document.getElementById('video-iframe');
-    const isVideoActive = isVideoOpen && isPlaying && !isSeeking;
+    const isVideoActive = isVideoOpen;
     
     if (ytDiv) ytDiv.style.opacity = isVideoActive ? '1' : '0';
     if (iframe) iframe.style.opacity = isVideoActive ? '1' : '0';
