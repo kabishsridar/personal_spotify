@@ -118,6 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.focus();
     console.log("Spotify Web Engine: THEATER MODE ONLINE 🎬🚀");
 
+    // Initialize YouTube IFrame API for proper synchronization
+    initializeYouTubeAPI();
+
     // INITIALIZE VOLUME SYNC 🔊
     audioEngine.volume = 0.7;
     if (volumeProgress) volumeProgress.style.width = "70%";
@@ -125,6 +128,62 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSidebarPlaylists();
     setupEventListeners();
 });
+
+// YouTube IFrame API initialization
+function initializeYouTubeAPI() {
+    if (document.getElementById('yt-iframe-api')) return;
+    const tag = document.createElement('script');
+    tag.id = 'yt-iframe-api';
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    window.onYouTubeIframeAPIReady = function() {
+        console.log("[YT] Creating player directly on static yt-player-div");
+        ytPlayer = new YT.Player('yt-player-div', {
+            height: '100%',
+            width: '100%',
+            playerVars: {
+                autoplay: 0,
+                controls: 0,
+                mute: 1,       // Always muted — audio comes from the proxy stream
+                enablejsapi: 1,
+                origin: window.location.origin,
+                rel: 0
+            },
+            events: {
+                onReady: (event) => {
+                    console.log('[YT] Player ready');
+                    event.target.mute();
+                },
+                onStateChange: (event) => {
+                    const state = event.data;
+                    // ALWAYS re-enforce mute on every state change
+                    if (event.target && typeof event.target.isMuted === 'function') {
+                        if (!event.target.isMuted()) {
+                            event.target.mute();
+                            console.log('[YT] Re-muted after state change (was unmuted)');
+                        }
+                    }
+                    if (state === YT.PlayerState.BUFFERING) {
+                        isVideoBuffering = true;
+                    } else if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.PAUSED) {
+                        isVideoBuffering = false;
+                    }
+
+                    // Toggle loader dots
+                    const loader = document.getElementById('video-loader');
+                    if (loader) {
+                        if (state === YT.PlayerState.BUFFERING || state === YT.PlayerState.UNSTARTED) {
+                            if (isVideoOpen) loader.classList.remove('hidden');
+                        } else {
+                            loader.classList.add('hidden');
+                        }
+                    }
+                }
+            }
+        });
+    };
+}
 
 // Keyboard Shortcuts Handler
 function handleKeyboardShortcuts(e) {
@@ -303,7 +362,10 @@ function setupEventListeners() {
     // Airtight Video-Audio Synchronization Event Listeners
     audioEngine.addEventListener('playing', () => {
         if (isVideoOpen && !isSeeking && !isBackupPlaying) {
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                ytPlayer.mute();
+                ytPlayer.playVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try {
                     videoIframe.contentWindow.postMessage(
                         JSON.stringify({
@@ -327,7 +389,9 @@ function setupEventListeners() {
             return;
         }
         if (isVideoOpen) {
-            if (videoIframe && videoIframe.src) {
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                ytPlayer.pauseVideo();
+            } else if (videoIframe && videoIframe.src) {
                 try { videoIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e) {}
             }
         }
@@ -577,25 +641,49 @@ function openVideoSidebar() {
     const loader = document.getElementById('video-loader');
     if (loader) loader.classList.remove('hidden');
 
-    videoIframe.style.display = 'block';
-    // mute=1 because audio comes from our proxy stream (prevent double audio)
-    videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&enablejsapi=1&start=${startSec}&origin=${encodeURIComponent(window.location.origin)}`;
-    
-    videoIframe.onload = () => {
-        if (loader) loader.classList.add('hidden');
-        if (isPlaying) {
-            try {
-                videoIframe.contentWindow.postMessage(
-                    JSON.stringify({ event: 'command', func: 'seekTo', args: [audioEngine.currentTime || 0, true] }),
-                    '*'
-                );
-                videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            } catch(e) {}
+    if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        const iframe = ytPlayer.getIframe();
+        if (iframe) {
+            iframe.style.display = 'block';
         }
-    };
+        videoIframe.style.display = 'none'; // hide fallback iframe
+        videoIframe.src = '';              // clear src so it can't play audio
+
+        // CRITICAL: mute BEFORE loading to prevent any audio flash
+        ytPlayer.mute();
+        ytPlayer.loadVideoById({ videoId: ytId, startSeconds: startSec });
+        setTimeout(() => {
+            ytPlayer.mute(); // Re-enforce mute after load (loadVideoById can reset it)
+            if (isPlaying) {
+                ytPlayer.playVideo();
+                ytPlayer.mute(); // mute again after play (triple insurance)
+            } else {
+                ytPlayer.pauseVideo();
+            }
+        }, 500);
+
+    } else {
+        // === FALLBACK PATH: direct iframe embed ===
+        videoIframe.style.display = 'block';
+        // mute=1 because audio comes from our proxy stream (prevent double audio)
+        videoIframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&enablejsapi=1&start=${startSec}&origin=${encodeURIComponent(window.location.origin)}`;
+        
+        videoIframe.onload = () => {
+            if (loader) loader.classList.add('hidden');
+            if (isPlaying) {
+                try {
+                    videoIframe.contentWindow.postMessage(
+                        JSON.stringify({ event: 'command', func: 'seekTo', args: [audioEngine.currentTime || 0, true] }),
+                        '*'
+                    );
+                    videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                } catch(e) {}
+            }
+        };
+    }
 
     // === DRIFT-BASED SYNC INTERVAL ===
-    // Sync the video timeline only if it drifts away from the audio timeline (prevents stuttering)
+    // Sync the video timeline periodically every second to match the audio time
     if (videoSyncInterval) clearInterval(videoSyncInterval);
     videoSyncInterval = setInterval(() => {
         if (!isVideoOpen || !isPlaying || isSeeking || isBackupPlaying) return;
@@ -603,19 +691,39 @@ function openVideoSidebar() {
         const audioTime = audioEngine.currentTime;
         if (isNaN(audioTime) || audioTime === 0) return;
 
-        if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
-            // Check discrepancy between audio time and YouTube time
-            const drift = Math.abs(audioTime - ytVideoCurrentTime);
-            if (drift > 1.8) {
-                console.log(`[Sync] Correcting drift of ${drift.toFixed(2)}s. Seeking video to ${audioTime.toFixed(1)}s.`);
+        if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+            // === YT API SYNC ===
+            // Always enforce mute — loadVideoById/seekTo can silently unmute
+            if (typeof ytPlayer.isMuted === 'function' && !ytPlayer.isMuted()) {
+                ytPlayer.mute();
+            }
+
+            const ytTime = ytPlayer.getCurrentTime() || 0;
+            const drift = audioTime - ytTime;
+
+            if (Math.abs(drift) > 2.0) {
+                // Hard re-sync: more than 2 seconds off
+                console.log(`[Sync] Hard re-sync: drift=${drift.toFixed(2)}s`);
+                ytPlayer.seekTo(audioTime, true);
+                ytPlayer.mute(); // re-mute after seek
+            } else if (Math.abs(drift) > 0.5 && !isVideoBuffering) {
+                // Soft nudge: 0.5–2s drift
+                console.log(`[Sync] Soft nudge: drift=${drift.toFixed(2)}s`);
+                ytPlayer.seekTo(audioTime, false);
+            }
+            // < 0.5s drift: do nothing — let video play naturally
+        } else if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
+            // === IFRAME postMessage SYNC (fallback) ===
+            // Fallback: gentle periodic sync every 5 seconds since we can't read time
+            const nowSec = Math.floor(audioTime);
+            if (nowSec !== lastSyncedSecond && nowSec % 5 === 0) {
+                lastSyncedSecond = nowSec;
                 try {
                     videoIframe.contentWindow.postMessage(
                         JSON.stringify({ event: 'command', func: 'seekTo', args: [audioTime, true] }),
                         '*'
                     );
                     videoIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-                    // Prevent immediate repeat seeks
-                    ytVideoCurrentTime = audioTime;
                 } catch(e) {}
             }
         }
@@ -632,6 +740,14 @@ function closeVideoSidebar() {
     if (videoSyncInterval) {
         clearInterval(videoSyncInterval);
         videoSyncInterval = null;
+    }
+
+    // Stop ytPlayer (keeps it muted & paused, ready for next open)
+    if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+        ytPlayer.mute();
+        ytPlayer.stopVideo();
+        const iframe = ytPlayer.getIframe();
+        if (iframe) iframe.style.display = 'none';
     }
 
     // Clear fallback iframe src so it stops ALL audio/video
@@ -1151,7 +1267,14 @@ async function playTrack(track) {
             if (loader) loader.classList.remove('hidden');
 
             document.getElementById('video-sidebar-title').innerText = `Watching: ${track.title}`;
-            if (videoIframe) {
+            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                const iframe = ytPlayer.getIframe();
+                if (iframe) iframe.style.display = 'block';
+                videoIframe.style.display = 'none';
+                ytPlayer.loadVideoById({ videoId: currentTrack.youtube_id, startSeconds: 0 });
+                // Give YouTube 600ms to buffer before playing
+                setTimeout(() => { if (isPlaying && isVideoOpen) ytPlayer.playVideo(); }, 600);
+            } else if (videoIframe) {
                 videoIframe.style.display = 'block';
                 videoIframe.src = `https://www.youtube.com/embed/${currentTrack.youtube_id}?autoplay=1&mute=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
                 videoIframe.onload = () => {
