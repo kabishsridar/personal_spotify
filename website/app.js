@@ -1334,36 +1334,6 @@ function updateProgress() {
             hasPrefetchedNext = true;
             prefetchNextTrack();
         }
-
-        // Periodically sync video timeline to audio timeline (more aggressive sync)
-        const audioTime = audioEngine.currentTime;
-        if (audioTime > 0 && isVideoOpen && !isSeeking && (Math.floor(audioTime) !== lastSyncedSecond || lastSyncedSecond === -1)) {
-            lastSyncedSecond = Math.floor(audioTime);
-            try {
-                if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-                    // Use YouTube API for precise sync
-                    const ytTime = ytPlayer.getCurrentTime() || 0;
-                    const drift = Math.abs(audioTime - ytTime);
-                    // Sync when drift exceeds 0.2 seconds (very tight sync)
-                    if (drift > 0.2) {
-                        ytPlayer.seekTo(audioTime, true);
-                        console.log(`[Periodic Sync] Fixed ${drift.toFixed(2)}s drift`);
-                    }
-                } else if (videoIframe && videoIframe.src && videoIframe.contentWindow) {
-                    // Fallback to iframe postMessage - sync every second for iframe
-                    videoIframe.contentWindow.postMessage(
-                        JSON.stringify({
-                            event: 'command',
-                            func: 'seekTo',
-                            args: [audioTime, false]
-                        }),
-                        '*'
-                    );
-                }
-            } catch(e) {
-                console.warn('[Sync warning]', e);
-            }
-        }
     }
 }
 
@@ -1429,16 +1399,7 @@ function syncVideoIframeToAudio() {
     console.log("[Seek Sync] Syncing video timeline to:", seconds);
 
     try {
-        if (ytPlayer) {
-            // Use YouTube API for precise seeking
-            ytPlayer.seekTo(seconds, true);
-            if (isPlaying) {
-                ytPlayer.playVideo();
-            } else {
-                ytPlayer.pauseVideo();
-            }
-        } else if (videoIframe && videoIframe.src) {
-            // Fallback to iframe postMessage
+        if (videoIframe && videoIframe.src) {
             videoIframe.contentWindow.postMessage(
                 JSON.stringify({
                     event: 'command',
