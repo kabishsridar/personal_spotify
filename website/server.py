@@ -1,11 +1,12 @@
-# Spotify Web - Global Python Backend Relay
+# Global Python Backend Relay
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import uvicorn
 import os
 import sys
+import httpx
 
 # Add root project path to sys.path to import our existing modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,27 +41,31 @@ async def stream(title: str, artist: str, request: Request):
     data = streamer.find_track_url(title, artist, user_agent=user_agent)
     return data
 
+# Global client to reuse connections and prevent socket leaks
+http_client = httpx.AsyncClient(timeout=None)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await http_client.aclose()
+
 @app.get("/api/proxy")
 async def proxy_stream(url: str, request: Request):
     """Proxy audio stream to bypass YouTube IP-locking restrictions."""
     import httpx
     from fastapi.responses import StreamingResponse
-    
+
     headers = {
         "User-Agent": request.headers.get("user-agent", "Mozilla/5.0"),
         "Accept-Encoding": "identity",
     }
     if "range" in request.headers:
         headers["Range"] = request.headers["range"]
-        
-    client = httpx.AsyncClient(timeout=None)
-    
+
     try:
-        # Build and send a streaming GET request directly to YouTube in one go
-        req = client.build_request("GET", url, headers=headers)
-        response = await client.send(req, stream=True, follow_redirects=True)
+        # Use the global client instead of creating a new one per request
+        req = http_client.build_request("GET", url, headers=headers)
+        response = await http_client.send(req, stream=True, follow_redirects=True)
     except Exception as e:
-        await client.aclose()
         print(f"Proxy Connection Error: {e}")
         return Response(status_code=502, content="Failed to connect to stream source")
 
@@ -68,7 +73,7 @@ async def proxy_stream(url: str, request: Request):
     content_type = response.headers.get("Content-Type", "audio/webm")
     content_range = response.headers.get("Content-Range", "")
     content_length = response.headers.get("Content-Length", "")
-    
+
     resp_headers = {
         "Content-Type": content_type,
         "Accept-Ranges": "bytes"
@@ -77,16 +82,52 @@ async def proxy_stream(url: str, request: Request):
         resp_headers["Content-Range"] = content_range
     if content_length:
         resp_headers["Content-Length"] = content_length
-        
+
     async def stream_generator():
         try:
             async for chunk in response.aiter_bytes(chunk_size=40960):
                 yield chunk
         finally:
+            # We only close the response, not the global client
             await response.aclose()
-            await client.aclose()
-            
+
     return StreamingResponse(stream_generator(), status_code=response.status_code, headers=resp_headers)
+
+
+@app.get("/api/transcript")
+async def get_transcript(yt_id: str):
+    """Retrieve subtitles/transcript for a given YouTube video ID."""
+    from youtube_transcript_api import YouTubeTranscriptApi
+    try:
+        print(f"Fetching transcript for YouTube ID: {yt_id}...")
+        transcript_list = YouTubeTranscriptApi.list_transcripts(yt_id)
+        try:
+            transcript = transcript_list.find_manually_created_transcript()
+        except Exception:
+            try:
+                transcript = transcript_list.find_generated_transcript()
+            except Exception:
+                transcript = next(iter(transcript_list))
+                
+        data = transcript.fetch()
+        return data
+    except Exception as e:
+        print(f"Failed to fetch YouTube transcript: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/transcribe_audio")
+async def api_transcribe_audio(yt_id: str):
+    """Fallback: transcribe audio directly using speech_recognition."""
+    from speech_to_text import transcribe_audio
+    import asyncio
+    try:
+        # Run transcription in a separate thread so it doesn't block the async event loop
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, transcribe_audio, yt_id)
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
 
 
 # --- Static File Handling ---

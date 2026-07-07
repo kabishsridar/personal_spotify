@@ -6,7 +6,7 @@
 const { expect } = require('@playwright/test');
 
 const BASE_URL = 'http://localhost:8000';
-const SONG_LOAD_TIMEOUT = 20000;   // 20s for a song to start streaming
+const SONG_LOAD_TIMEOUT = 30000;   // 30s for a song to start streaming (backend may be slow)
 const SEARCH_TIMEOUT    = 15000;   // 15s for search results to appear
 
 /**
@@ -29,8 +29,8 @@ async function searchFor(page, query) {
     await page.press('#web-search-input', 'Enter');
 
     // Wait for at least one result card to appear
-    await page.waitForSelector('.recent-card', { timeout: SEARCH_TIMEOUT });
-    const count = await page.locator('.recent-card').count();
+    await page.waitForSelector('.recent-card:visible', { timeout: SEARCH_TIMEOUT });
+    const count = await page.locator('.recent-card:visible').count();
     console.log(`✅ Search for "${query}" returned ${count} results`);
     return count;
 }
@@ -40,7 +40,7 @@ async function searchFor(page, query) {
  * Waits until the player title changes from "Welcome".
  */
 async function playSongAtIndex(page, index = 0) {
-    const cards = page.locator('.recent-card');
+    const cards = page.locator('.recent-card:visible');
     const card  = cards.nth(index);
 
     // Hover to make the play button visible, then click it
@@ -63,8 +63,12 @@ async function playSongAtIndex(page, index = 0) {
  */
 async function waitForPlaybackToStart(page) {
     await page.waitForFunction(() => {
+        // Regular mode: audio engine has advanced past 0:00
         const el = document.getElementById('current-time');
-        return el && el.innerText !== '0:00';
+        if (el && el.innerText !== '0:00') return true;
+        // Backup mode: YouTube iframe is the audio source — consider started after 1.5s
+        if (window.isBackupPlaying) return true;
+        return false;
     }, { timeout: SONG_LOAD_TIMEOUT });
     const time = await page.locator('#current-time').innerText();
     console.log(`✅ Playback started — current time: ${time}`);

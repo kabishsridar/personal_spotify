@@ -103,14 +103,14 @@
             -webkit-mask-image: -webkit-radial-gradient(white, black);
         }
         .video-container iframe, .video-container #yt-player-div {
-            width: 170% !important;
-            height: 170% !important;
+            width: 100% !important;
+            height: 100% !important;
             border: none !important;
             position: absolute !important;
-            top: -35% !important;
-            left: -35% !important;
+            top: 0 !important;
+            left: 0 !important;
             transform: none !important;
-            opacity: 1 !important;
+            opacity: 0;
             z-index: 2 !important;
             pointer-events: none !important;
             transition: opacity 0.3s ease-in-out;
@@ -123,22 +123,16 @@
         .loading-dots.hidden { display: none !important; }
         
         .app-container {
+            --sidebar-width: 240px;
+            --video-width: 0px;
+            --queue-width: 0px;
             display: grid;
-            grid-template-columns: 240px 1fr 0px 0px; /* Video Sidebar 0px, Queue Sidebar 0px */
-            grid-template-rows: 1fr 90px;
+            grid-template-columns: var(--sidebar-width) 1fr var(--video-width) var(--queue-width);
+            grid-template-rows: 1fr 105px;
             height: 100vh;
             width: 100vw;
             overflow: hidden;
             transition: grid-template-columns 0.3s ease-in-out;
-        }
-        .app-container.show-video {
-            grid-template-columns: 240px 1fr 400px 0px;
-        }
-        .app-container.show-queue {
-            grid-template-columns: 240px 1fr 0px 300px;
-        }
-        .app-container.show-both {
-            grid-template-columns: 240px 1fr 400px 300px;
         }
 
         /* Modal Style */
@@ -242,7 +236,7 @@
             </div>
         </div>
     </div>
-    <div class="app-container" id="main-container">
+    <div class="app-container" id="main-container" style="--sidebar-width: 240px; --video-width: 0px; --queue-width: 0px;">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
@@ -271,7 +265,19 @@
                     <i class="fas fa-sync-alt" id="btn-refresh" style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; cursor: pointer; margin-left:10px;" title="Hard Refresh UI"></i>
                     <i class="fas fa-mobile-alt" id="btn-connect-mobile" style="background: rgba(0,0,0,0.5); padding: 10px 12px; border-radius: 50%; cursor: pointer; margin-left:10px; color: var(--primary-green); display: none;" title="Connect to Computer IP"></i>
                 </div>
-                <div class="user-profile"><img src="https://ui-avatars.com/api/?name=User&background=d946ef&color=fff"><span>User</span><i class="fas fa-caret-down"></i></div>
+                <div class="theme-selector-container">
+                    <i class="fas fa-palette" id="btn-theme-menu" style="cursor:pointer; font-size: 1.2rem; color: var(--text-dim);"></i>
+                    <div id="theme-menu" class="theme-dropdown hidden">
+                        <h4>Choose Theme</h4>
+                        <div data-theme="default">🟢 Classic</div>
+                        <div data-theme="midnight">🟣 Midnight</div>
+                        <div data-theme="crimson">🔴 Crimson</div>
+                        <div data-theme="ocean">🔵 Ocean</div>
+                        <div data-theme="solar">☀️ Solar</div>
+                        <div data-theme="dynamic">🌈 Dynamic</div>
+                        <div data-theme="glass">💎 Glass</div>
+                    </div>
+                </div>
             </header>
 
             <section class="content-view" id="home">
@@ -323,10 +329,17 @@
                 </div>
                 <div class="results-list" id="playlist-tracks"></div>
             </section>
+
+            <section class="content-view hidden" id="lyrics-view">
+                <div class="lyrics-container" id="lyrics-container">
+                    <div class="lyrics-status">Play a song and select the lyrics button to load synced lyrics 🎤</div>
+                </div>
+            </section>
         </main>
 
         <!-- VIDEO SIDEBAR -->
         <aside class="video-sidebar" id="video-sidebar">
+            <div class="resize-handle" id="video-resize-handle"></div>
             <div class="video-header">
                 <h3 id="video-sidebar-title">Now Watching</h3>
                 <div style="display: flex; align-items: center; gap: 15px;">
@@ -349,6 +362,7 @@
 
         <!-- QUEUE SIDEBAR -->
         <aside class="queue-sidebar" id="queue-sidebar">
+            <div class="resize-handle" id="queue-resize-handle"></div>
             <div class="queue-header">
                 <h3>Queue</h3>
             </div>
@@ -362,26 +376,54 @@
             <div class="current-track">
                 <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=100&auto=format&fit=crop" id="player-thumb">
                 <div class="track-info">
-                    <h4 id="player-title" style="cursor: pointer; text-decoration: underline;">Welcome</h4>
+                    <h4 id="player-title" style="cursor:pointer;">Welcome</h4>
                     <p id="player-artist">Ready to play...</p>
                 </div>
-                <i class="fas fa-plus-circle" id="btn-add-current-playlist" style="cursor: pointer; color: var(--primary-green); font-size: 20px; margin-left: 20px; display: none;"></i>
+                <div style="display:flex; align-items:center; gap:14px; margin-left:14px; flex-shrink:0;">
+                    <i class="far fa-heart" id="btn-like-track" title="Like Song"></i>
+                    <i class="fas fa-share-nodes" id="btn-share-track" title="Share"></i>
+                </div>
+                <i class="fas fa-plus-circle" id="btn-add-current-playlist" style="cursor:pointer; color:var(--accent); font-size:18px; margin-left:12px; display:none;"></i>
                 <div class="playlist-dropdown" id="playlist-select-menu"><h4>Add to playlist</h4><div id="dropdown-playlist-list"></div></div>
             </div>
 
             <div class="player-controls">
-                <div class="buttons"><i class="fas fa-shuffle" id="btn-shuffle"></i><i class="fas fa-step-backward" id="btn-prev"></i><div class="play-pause" id="play-pause-btn"><i class="fas fa-play"></i></div><i class="fas fa-step-forward" id="btn-next"></i><i class="fas fa-redo" id="btn-repeat"></i></div>
-                <div class="progress-bar-container"><span id="current-time">0:00</span><div class="progress-bar"><div class="progress" id="playback-progress"></div></div><span id="total-time">0:00</span></div>
+                <div class="visualizer-container">
+                    <canvas id="visualizer-canvas"></canvas>
+                </div>
+                <div class="buttons">
+                    <i class="fas fa-shuffle" id="btn-shuffle" title="Shuffle"></i>
+                    <i class="fas fa-step-backward" id="btn-prev" title="Previous"></i>
+                    <div class="play-pause" id="play-pause-btn"><i class="fas fa-play"></i></div>
+                    <i class="fas fa-step-forward" id="btn-next" title="Next"></i>
+                    <i class="fas fa-redo" id="btn-repeat" title="Repeat"></i>
+                </div>
+                <div class="progress-bar-container">
+                    <span id="current-time">0:00</span>
+                    <div class="progress-bar">
+                        <div class="progress" id="playback-progress"></div>
+                    </div>
+                    <span id="total-time">0:00</span>
+                </div>
             </div>
 
-            <div class="volume-controls" style="display: flex; align-items: center; gap: 15px;">
-                <i class="fas fa-list-ul" id="btn-toggle-queue" title="View Queue" style="cursor: pointer; color: #b3b3b3;"></i>
-                <i class="fas fa-volume-up" id="btn-mute" style="cursor: pointer; width: 24px;"></i>
-                <div class="volume-bar" style="height: 24px; width: 100px; display: flex; align-items: center; position: relative; cursor: pointer;">
-                    <!-- The Background Line -->
-                    <div style="background: #4f4f4f; height: 4px; width: 100%; border-radius: 2px; position: absolute; z-index: 1;"></div>
-                    <!-- The Progress Bar (White) -->
-                    <div class="volume-progress" style="width: 70%; background: white; height: 4px; border-radius: 2px; position: absolute; left: 0; z-index: 2;"></div>
+            <div class="volume-controls">
+                <i class="fas fa-microphone" id="btn-toggle-lyrics" title="Lyrics"></i>
+                <div class="sleep-timer-container">
+                    <i class="fas fa-clock" id="btn-sleep-timer" title="Sleep Timer"></i>
+                    <div id="sleep-dropdown" class="sleep-dropdown hidden">
+                        <div data-minutes="0">Off</div>
+                        <div data-minutes="5">5 mins</div>
+                        <div data-minutes="15">15 mins</div>
+                        <div data-minutes="30">30 mins</div>
+                        <div data-minutes="60">60 mins</div>
+                    </div>
+                </div>
+                <i class="fas fa-list-ul" id="btn-toggle-queue" title="Queue"></i>
+                <i class="fas fa-volume-up" id="btn-mute" style="cursor:pointer;"></i>
+                <div class="volume-bar" id="volume-bar-bg" style="height:20px; width:90px; display:flex; align-items:center; position:relative; cursor:pointer;">
+                    <div style="background:var(--progress-track); height:4px; width:100%; border-radius:2px; position:absolute; z-index:1;"></div>
+                    <div class="volume-progress" style="width:70%; height:4px; border-radius:2px; position:absolute; left:0; z-index:2;"></div>
                 </div>
             </div>
         </footer>
@@ -393,6 +435,45 @@
         <a href="#" id="m-nav-search"><i class="fas fa-search"></i><span>Search</span></a>
         <a href="#" id="m-nav-library"><i class="fas fa-book"></i><span>Library</span></a>
     </nav>
+
+    <!-- MOBILE FULL-SCREEN PLAYER / THEATER VIEW -->
+    <div class="theater-view hidden-theater" id="mobile-theater-view">
+        <div class="theater-header">
+            <button id="btn-collapse-theater"><i class="fas fa-chevron-down"></i></button>
+            <div class="theater-meta">
+                <span>Now Playing</span>
+            </div>
+            <button id="btn-share-theater"><i class="fas fa-share-nodes"></i></button>
+        </div>
+        <div class="theater-body">
+            <div style="width:100%; aspect-ratio:1/1; border-radius:20px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.7); margin-bottom:28px;">
+                <img id="theater-album-art" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400&auto=format&fit=crop" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <div style="text-align:left;">
+                    <h1 id="theater-track-title" style="font-size:22px; font-weight:700; margin-bottom:6px;">Welcome</h1>
+                    <p id="theater-track-artist" style="font-size:15px; color:var(--text-sub);">Ready to play...</p>
+                </div>
+                <button class="btn-heart" id="btn-like-theater"><i class="far fa-heart"></i></button>
+            </div>
+            <div class="theater-controls" style="margin-top:28px; width:100%;">
+                <div class="theater-progress-container" style="display:flex; align-items:center; gap:12px; margin-bottom:20px; width:100%;">
+                    <span id="theater-current-time" class="theater-time">0:00</span>
+                    <div class="theater-progress-bar" id="theater-progress-bar-bg">
+                        <div id="theater-progress-fill"></div>
+                    </div>
+                    <span id="theater-total-time" class="theater-time">0:00</span>
+                </div>
+                <div class="theater-buttons" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <button id="theater-btn-shuffle"><i class="fas fa-shuffle"></i></button>
+                    <button id="theater-btn-prev"><i class="fas fa-step-backward"></i></button>
+                    <button class="play-main" id="theater-play-pause-btn"><i class="fas fa-play-circle"></i></button>
+                    <button id="theater-btn-next"><i class="fas fa-step-forward"></i></button>
+                    <button id="theater-btn-repeat"><i class="fas fa-redo"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="toast" id="toast-msg">Added to Playlist Successfully!</div>
 

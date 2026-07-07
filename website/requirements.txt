@@ -4,3 +4,8 @@ yt-dlp>=2023.11.16
 spotipy>=2.23.0
 python-dotenv>=1.0.0
 httpx>=0.24.0
+cloudscraper
+beautifulsoup4
+duckduckgo-search
+SpeechRecognition
+pydub

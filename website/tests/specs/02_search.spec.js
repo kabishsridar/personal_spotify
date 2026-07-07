@@ -19,7 +19,7 @@ test.describe('Search', () => {
         await openApp(page);
         await searchFor(page, 'AR Rahman');
 
-        const firstCard = page.locator('.recent-card').first();
+        const firstCard = page.locator('.recent-card:visible').first();
         // The card should contain non-empty text
         const text = await firstCard.innerText();
         expect(text.trim().length).toBeGreaterThan(3);
@@ -30,7 +30,7 @@ test.describe('Search', () => {
         await openApp(page);
         await searchFor(page, 'Tamil hits');
 
-        const before = await page.locator('.recent-card').count();
+        const before = await page.locator('.recent-card:visible').count();
         console.log(`  Before scroll: ${before} cards`);
 
         // Scroll the main content area to the bottom
@@ -42,7 +42,7 @@ test.describe('Search', () => {
         // Wait for more items to load (loader animation)
         await page.waitForTimeout(8000); // Wait for API response
 
-        const after = await page.locator('.recent-card').count();
+        const after = await page.locator('.recent-card:visible').count();
         console.log(`  After scroll: ${after} cards`);
         expect(after).toBeGreaterThanOrEqual(before);
         console.log(`✅ Infinite scroll: ${after - before} more songs loaded`);

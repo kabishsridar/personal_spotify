@@ -132,16 +132,16 @@ test.describe('Video Sync', () => {
         const titleBefore = await page.locator('#video-sidebar-title').innerText();
         await page.click('#btn-next');
 
-        // Wait for player title to change
+        // Wait directly for the video sidebar title to change — this is deterministic
+        // and avoids the flakiness of waiting on player-title + a fixed timeout.
         await page.waitForFunction(
             (orig) => {
-                const t = document.getElementById('player-title')?.innerText;
-                return t && t !== orig && t !== 'Welcome';
+                const t = document.getElementById('video-sidebar-title')?.innerText;
+                return t && t !== orig && t !== 'Watching: Welcome';
             },
-            titleBefore.replace('Watching: ', ''),
+            titleBefore,
             { timeout: SONG_LOAD_TIMEOUT }
         );
-        await page.waitForTimeout(3000); // Wait for video to reload
 
         const titleAfter = await page.locator('#video-sidebar-title').innerText();
         expect(titleAfter).not.toBe(titleBefore);

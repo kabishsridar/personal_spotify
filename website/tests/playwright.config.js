@@ -18,7 +18,7 @@ module.exports = defineConfig({
         viewport: { width: 1280, height: 800 },
         video: 'retain-on-failure',       // Save video of failed tests
         screenshot: 'only-on-failure',    // Save screenshot on failure
-        actionTimeout: 15000,             // Max 15s to find/click an element
+        actionTimeout: 35000,             // Max 35s to find/click an element (stream resolution can be slow)
     },
     projects: [
         {

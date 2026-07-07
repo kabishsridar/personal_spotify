@@ -16,8 +16,14 @@ test.describe('Keyboard Shortcuts', () => {
         await searchFor(page, 'Tamil hits');
         await playSongAtIndex(page, 0);
         await waitForPlaybackToStart(page);
-        // Ensure page body has focus (required for shortcuts to fire)
-        await page.click('body');
+        // Blur the search input so keyboard shortcuts fire on document, not inside an input.
+        // page.click('body') is unreliable — focus reverts to the textbox. Direct blur is deterministic.
+        await page.evaluate(() => {
+            if (document.activeElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
+        });
+        await page.waitForTimeout(200);
     });
 
     // -------------------------------------------------------
